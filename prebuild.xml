@@ -1,0 +1,54 @@
+<Project frameworkVersion="v4_0" name="aarModule" path="addon-modules/aarModule/src" type="Library">
+    <Configuration name="Debug">
+        <Options>
+            <OutputPath>../../../bin</OutputPath>
+        </Options>
+    </Configuration>
+    <Configuration name="Release">
+        <Options>
+            <OutputPath>../../../bin</OutputPath>
+        </Options>
+    </Configuration>
+ 
+    <ReferencePath>../../../bin</ReferencePath>
+    <Reference name="System"/>
+    <Reference name="System.Core"/>
+    <Reference name="System.Xml"/>
+    <Reference name="System.Xml.Linq"/>
+    <Reference name="System.Drawing"/>
+    <Reference name="System.Web"/>
+    <Reference name="NDesk.Options" path="../../../bin/"/>
+    <Reference name="OpenMetaverseTypes" path="../../../bin/"/>
+    <Reference name="OpenMetaverse.StructuredData" path="../../../bin/"/>
+    <Reference name="OpenMetaverse" path="../../../bin/"/>
+    <Reference name="CSJ2K" path="../../../bin/"/>
+    <Reference name="Warp3D" path="../../../bin/" localCopy="true"/>
+    <Reference name="OpenSim.Capabilities"/>
+    <Reference name="OpenSim.Data"/>
+    <Reference name="OpenSim.Framework"/>
+    <Reference name="OpenSim.Framework.Communications"/>
+    <Reference name="OpenSim.Framework.Console"/>
+    <Reference name="OpenSim.Framework.Monitoring"/>
+    <Reference name="OpenSim.Framework.Serialization"/>
+    <Reference name="OpenSim.Framework.Servers"/>
+    <Reference name="OpenSim.Framework.Servers.HttpServer"/>
+    <Reference name="OpenSim.Framework.Statistics"/>
+    <Reference name="OpenSim.Region.CoreModules"/>
+    <Reference name="OpenSim.Region.Framework"/>
+    <Reference name="OpenSim.Region.Physics.Manager"/>
+    <Reference name="OpenSim.Server.Base"/>
+    <Reference name="OpenSim.Server.Handlers"/>
+    <Reference name="OpenSim.Services.Connectors"/>
+    <Reference name="OpenSim.Services.Base"/>
+    <Reference name="OpenSim.Services.Interfaces"/>
+    <Reference name="OpenSim.Region.ClientStack.LindenUDP"/>
+    
+    <Reference name="Nini" path="../../../bin/"/>
+    <Reference name="log4net" path="../../../bin/"/>
+    
+    <Reference name="Mono.Addins" path="../../../bin/"/>
+ 
+    <Files>
+        <Match pattern="*.cs" recurse="true"/>
+    </Files>
+</Project>
