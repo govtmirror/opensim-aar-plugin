@@ -13,19 +13,19 @@ using OpenSim.Region.Framework.Scenes;
 
 using Mono.Addins;
 
-[assembly: Addin("AarModule", "0.1")]
-[assembly: AddinDependency("Opensim", "0.5")]
+[assembly: Addin("AARModule", "0.1")]
+[assembly: AddinDependency("OpenSim", "0.5")]
 
-namespace MOSES.AarModule
+namespace MOSES.AAR
 {
-	[Extension(Path = "/OpenSim/RegionModules", NodeName = "AarModule", Id = "AarModule")]
-	public class AarModule : INonSharedRegionModule
+	[Extension(Path = "/OpenSim/RegionModules", NodeName = "RegionModule", Id = "AARModule")]
+	public class AARModule : INonSharedRegionModule
 	{
 		#region INonSharedRegionModule
         
 		private static ILog m_log;
 		
-		public string Name { get { return "AAR Module"; } }
+		public string Name { get { return "AARModule"; } }
 
 		public Type ReplaceableInterface { get { return null; } }
 
