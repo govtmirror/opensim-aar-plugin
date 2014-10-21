@@ -32,7 +32,6 @@
     <Reference name="OpenSim.Framework.Serialization"/>
     <Reference name="OpenSim.Framework.Servers"/>
     <Reference name="OpenSim.Framework.Servers.HttpServer"/>
-    <Reference name="OpenSim.Framework.Statistics"/>
     <Reference name="OpenSim.Region.CoreModules"/>
     <Reference name="OpenSim.Region.Framework"/>
     <Reference name="OpenSim.Region.Physics.Manager"/>
