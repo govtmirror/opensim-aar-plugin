@@ -62,7 +62,7 @@ namespace MOSES.AAR
 			m_scene.EventManager.OnSignificantClientMovement += this.EventManager_OnClientMovement;
 			m_scene.EventManager.OnMakeChildAgent += this.EventManager_OnRemoveActor;
 			m_scene.EventManager.OnMakeRootAgent += this.EventManager_OnAddActor;
-			m_scene.EventManager.OnFrame += this.EventManager_OnFrame;
+			m_scene.EventManager.OnRegionHeartbeatEnd += this.EventManager_OnFrame;
 			m_log.DebugFormat("[AAR]: Region {0} Added", scene.RegionInfo.RegionName);
 		}
 
@@ -77,7 +77,7 @@ namespace MOSES.AAR
 			m_scene.EventManager.OnSignificantClientMovement += this.EventManager_OnClientMovement;
 			m_scene.EventManager.OnMakeChildAgent += this.EventManager_OnRemoveActor;
 			m_scene.EventManager.OnMakeRootAgent += this.EventManager_OnAddActor;
-			m_scene.EventManager.OnFrame += this.EventManager_OnFrame;
+			m_scene.EventManager.OnRegionHeartbeatEnd += this.EventManager_OnFrame;
 			m_scene.UnregisterModuleCommander(m_commander.Name);
 		}
 
@@ -92,7 +92,7 @@ namespace MOSES.AAR
 
 		#region EventManager
 
-		private void EventManager_OnFrame()
+		private void EventManager_OnFrame(Scene s)
 		{
 			aar.tick();
 		}
