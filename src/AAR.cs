@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using OpenSim.Region.Framework.Scenes;
 using OpenMetaverse;
 using System.Diagnostics;
+using OpenSim.Framework;
+using OpenMetaverse.StructuredData;
 
 namespace MOSES.AAR
 {
@@ -25,7 +27,7 @@ namespace MOSES.AAR
 
 	public interface IDispatch
 	{
-		UUID createActor(string name, Vector3 position);
+		UUID createActor(string firstName, string lastName, AvatarAppearance appearance, Vector3 position);
 		void moveActor(UUID uuid, Vector3 position);
 		void deleteActor(UUID uuid);
 	}
@@ -77,7 +79,7 @@ namespace MOSES.AAR
 			action.Clear();
 			foreach(Actor a in avatars.Values)
 			{
-				action.Enqueue(new Event(AAREvent.AddActor, a.name, elapsedTime, a.Position));
+				action.Enqueue(new ActorEvent(AAREvent.AddActor, a.firstName, a.lastName, a.appearance, a.Position, elapsedTime));
 			}
 			log("Record Start");
 			return true;
@@ -131,10 +133,10 @@ namespace MOSES.AAR
 			else
 			{
 				avatars[client.UUID] = new Actor(client);
-				log(string.Format("New Presence: {0} , tracking {1} Actors", this.avatars[client.UUID].name, this.avatars.Count));
+				log(string.Format("New Presence: {0} , tracking {1} Actors", this.avatars[client.UUID].firstName, this.avatars.Count));
 				if(this.state == AARState.recording)
 				{
-					action.Enqueue(new Event(AAREvent.AddActor, avatars[client.UUID].name, elapsedTime, avatars[client.UUID].Position));
+					action.Enqueue(new ActorEvent(AAREvent.AddActor, avatars[client.UUID].firstName, avatars[client.UUID].lastName, avatars[client.UUID].appearance, avatars[client.UUID].Position, elapsedTime));
 				}
 				return true;
 			}
@@ -149,7 +151,7 @@ namespace MOSES.AAR
 					this.avatars[client.UUID].Position = client.AbsolutePosition;
 					if(this.state == AARState.recording)
 					{
-						action.Enqueue(new Event(AAREvent.MoveActor, avatars[client.UUID].name, elapsedTime, avatars[client.UUID].Position));
+						action.Enqueue(new ActorEvent(AAREvent.MoveActor, avatars[client.UUID].firstName, avatars[client.UUID].lastName, avatars[client.UUID].appearance, avatars[client.UUID].Position, elapsedTime));
 					}
 					return true;
 				}
@@ -163,7 +165,7 @@ namespace MOSES.AAR
 			{
 				if(this.state == AARState.recording)
 				{
-					action.Enqueue(new Event(AAREvent.RemoveActor, avatars[uuid].name, elapsedTime, avatars[uuid].Position));
+					action.Enqueue(new ActorEvent(AAREvent.RemoveActor, avatars[uuid].firstName, avatars[uuid].lastName, avatars[uuid].appearance, avatars[uuid].Position, elapsedTime));
 				}
 				this.avatars.Remove(uuid);
 				return true;
@@ -209,20 +211,30 @@ namespace MOSES.AAR
 			}
 			log(string.Format("playback at elapsed {0}, next event at {1}", elapsedTime, action.Peek().time));
 			while( action.Count > 0 && elapsedTime > action.Peek().time){
-				Event e = action.Dequeue();
+				var e = action.Dequeue();
 				switch(e.type){
 				case AAREvent.AddActor:
-					log(string.Format("Adding actor {0} at {1}", e.description, e.position));
-					UUID uuid = dispatch.createActor(e.description, e.position);
-					stooges[e.description] = new Actor(uuid,e.description,e.position);
+					ActorEvent av = (ActorEvent)e;
+					log(string.Format("Adding actor {0} at {1}", av.fullName, av.position));
+					UUID uuid = dispatch.createActor(av.firstName, av.lastName, new AvatarAppearance(av.appearance), av.position);
+					stooges[av.fullName] = new Actor(uuid,av.firstName, av.lastName,av.position, av.appearance);
 					break;
 				case AAREvent.MoveActor:
-					log(string.Format("Moving actor {0} to {1}", e.description, e.position));
-					dispatch.moveActor(stooges[e.description].uuid, e.position);
+					av = (ActorEvent)e;
+					if(stooges.ContainsKey(av.fullName))
+					{
+						log(string.Format("Moving actor {0} to {1}", av.fullName, av.position));
+						dispatch.moveActor(stooges[av.fullName].uuid, av.position);
+					}
+					else
+					{
+						log(string.Format("Received avatar moved event for nonexistant entity {0}", av.fullName));
+					}
 					break;
 				case AAREvent.RemoveActor:
-					log(string.Format("Removing actor {0}", e.description));
-					dispatch.deleteActor(stooges[e.description].uuid);
+					av = (ActorEvent)e;
+					log(string.Format("Removing actor {0}", av.fullName));
+					dispatch.deleteActor(stooges[av.fullName].uuid);
 					break;
 				default:
 					log("Invalid command during playback");
@@ -232,45 +244,62 @@ namespace MOSES.AAR
 		}
 	}
 
-	class Event
+	abstract class Event
 	{
 		public AAREvent type;
-		public string description;
 		public long time;
 		public Vector3 position;
 
-		public Event(AAREvent type, string description, long time, Vector3 position)
+		public Event(AAREvent type, long time)
 		{
 			this.type = type;
-			this.description = description;
 			this.time = time;
-			this.position = position;
 		}
+	}
 
-		public override string ToString ()
+	class ActorEvent : Event
+	{
+		public string firstName;
+		public string lastName;
+		public OSDMap appearance;
+		public string fullName {get { return string.Format("{0} {1}", this.firstName, this.lastName); } }
+
+		public ActorEvent(AAREvent eventType, string firstName, string lastName, OSDMap appearance, Vector3 position, long time) : base(eventType, time)
 		{
-			return base.ToString() + ": " + type.ToString() + ", " + description + ", " + time.ToString();
+			this.firstName = firstName;
+			this.lastName = lastName;
+			this.appearance = appearance;
+			this.position = position;
 		}
 	}
 
 	class Actor
 	{
 		public UUID uuid { get; private set; }
-		public string name { get; private set; }
+		public string firstName { get; private set; }
+		public string lastName {get; set; }
+		public string fullname {get; set; }
 		public Vector3 Position { get; set;}
+		public OSDMap appearance { get; set; }
 
 		public Actor(ScenePresence presence)
 		{
 			this.uuid = presence.UUID;
-			this.name = string.Format("{0} {1}", presence.Firstname, presence.Lastname);
+			this.firstName = presence.Firstname;
+			this.lastName = presence.Lastname;
 			this.Position = presence.AbsolutePosition;
+			this.appearance = presence.Appearance.Pack();
+			this.fullname = string.Format("{0} {1}", this.firstName, this.lastName);
 		}
 
-		public Actor(UUID uuid, string name, Vector3 position)
+		public Actor(UUID uuid, string firstName, string lastName, Vector3 position, OSDMap appearance)
 		{
 			this.uuid = uuid;
-			this.name = name;
+			this.firstName = firstName;
+			this.lastName = lastName;
 			this.Position = position;
+			this.appearance = appearance;
+			this.fullname = string.Format("{0} {1}", this.firstName, this.lastName);
 		}
 	}
 }

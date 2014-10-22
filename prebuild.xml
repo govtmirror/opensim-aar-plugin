@@ -41,6 +41,7 @@
     <Reference name="OpenSim.Services.Base"/>
     <Reference name="OpenSim.Services.Interfaces"/>
     <Reference name="OpenSim.Region.ClientStack.LindenUDP"/>
+    <Reference name="OpenSim.Region.OptionalModules"/>
     
     <Reference name="Nini" path="../../../bin/"/>
     <Reference name="log4net" path="../../../bin/"/>

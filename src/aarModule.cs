@@ -8,9 +8,11 @@ using log4net;
 
 using OpenSim.Region.Framework.Interfaces;
 using OpenSim.Region.Framework.Scenes;
+using OpenSim.Region.OptionalModules.World.NPC;
 
 using Mono.Addins;
 using OpenMetaverse;
+using System.Collections.Generic;
 
 [assembly: Addin("AARModule", "0.1")]
 [assembly: AddinDependency("OpenSim", "0.5")]
@@ -24,6 +26,7 @@ namespace MOSES.AAR
 		private Scene m_scene;
 		private static ILog m_log;
 		private AAR aar;
+		private AARNPCModule npc;
 
 		#region RegionModule
 
@@ -34,6 +37,7 @@ namespace MOSES.AAR
 		public AARModule()
 		{
 			this.aar = new AAR(delegate(string s){m_log.DebugFormat("[AAR]: {0}", s);}, this);
+			this.npc = new AARNPCModule();
 		}
 
 		public void Initialise(IConfigSource source)
@@ -64,6 +68,7 @@ namespace MOSES.AAR
 			m_scene.EventManager.OnMakeRootAgent += this.EventManager_OnAddActor;
 			m_scene.EventManager.OnRegionHeartbeatEnd += this.EventManager_OnFrame;
 			m_log.DebugFormat("[AAR]: Region {0} Added", scene.RegionInfo.RegionName);
+			this.npc.AddRegion(scene);
 		}
 
 		public void RemoveRegion(Scene scene)
@@ -79,13 +84,14 @@ namespace MOSES.AAR
 			m_scene.EventManager.OnMakeRootAgent += this.EventManager_OnAddActor;
 			m_scene.EventManager.OnRegionHeartbeatEnd += this.EventManager_OnFrame;
 			m_scene.UnregisterModuleCommander(m_commander.Name);
+			this.npc.RemoveRegion(scene);
 		}
 
 		public void RegionLoaded(Scene scene)
 		{
 			m_log.DebugFormat("[AAR]: Region {0} Loaded", scene.RegionInfo.RegionName);
 			initCommander();
-
+			this.npc.RegionLoaded(scene);
 		}
 
 		#endregion
@@ -220,9 +226,7 @@ OnAttach
 		#endregion
 
 		#region Dispatch
-
-		public UUID createActor(string name, Vector3 position)
-		{
+		/*create a box
 			string rawSogId = string.Format("00000000-0000-0000-0000-{0:X12}", 0x10);
 			SceneObjectGroup sog 
 				= new SceneObjectGroup(
@@ -235,21 +239,43 @@ OnAttach
 				aar.stopPlaying();
 			}
 			return sog.UUID;
+		*/
+
+		/* move box
+			SceneObjectGroup sog = m_scene.GetGroupByPrim(uuid);
+			sog.AbsolutePosition = position;
+			sog.ScheduleGroupForTerseUpdate();
+		*/
+
+		/* remove box ???
+			SceneObjectGroup sog = m_scene.GetGroupByPrim(uuid);
+			m_scene.RemoveGroupTarget(sog);
+		*/
+
+		public UUID createActor(string firstName, string lastName, AvatarAppearance appearance, Vector3 position)
+		{
+			return npc.CreateNPC(firstName,lastName,position,UUID.Zero,false,m_scene,appearance);
 		}
 
 		public void moveActor(UUID uuid, Vector3 position)
 		{
-			SceneObjectGroup sog = m_scene.GetGroupByPrim(uuid);
-			sog.AbsolutePosition = position;
-			sog.ScheduleGroupForTerseUpdate();
+			npc.MoveToTarget(uuid, m_scene, position,false,false,false);
 		}
 
 		public void deleteActor(UUID uuid)
 		{
-			SceneObjectGroup sog = m_scene.GetGroupByPrim(uuid);
-			m_scene.RemoveGroupTarget(sog);
+			npc.DeleteNPC(uuid, m_scene);
 		}
 
 		#endregion
+	}
+
+	class AARNPCModule : NPCModule
+	{
+		new public bool Enabled { get; private set; }
+		public AARNPCModule() : base()
+		{
+			this.Enabled = true;
+		}
 	}
 }
