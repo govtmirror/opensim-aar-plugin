@@ -259,7 +259,7 @@ OnAttach
 
 		public void moveActor(UUID uuid, Vector3 position)
 		{
-			npc.MoveToTarget(uuid, m_scene, position,false,false,false);
+			npc.MoveToTarget(uuid, m_scene, position,true,false,false);
 		}
 
 		public void deleteActor(UUID uuid)
@@ -270,6 +270,7 @@ OnAttach
 		#endregion
 	}
 
+	/* Extend NPC module and force enabled, so we dont rely on the NPC opensim ini config to perform */
 	class AARNPCModule : NPCModule
 	{
 		new public bool Enabled { get; private set; }

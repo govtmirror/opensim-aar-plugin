@@ -45,7 +45,9 @@ namespace MOSES.AAR
 		//tracking AAR created avatars
 		private Dictionary<string, Actor> stooges = new Dictionary<string, Actor>();
 		//queue of scene events
-		private Queue<Event> action = new Queue<Event>();
+		private Queue<Event> recordedActions = new Queue<Event>();
+		//queue of processed scene events
+		private Queue<Event> processedActions = new Queue<Event>();
 		private Stopwatch sw = new Stopwatch();
 		private long elapsedTime = 0;
 
@@ -76,10 +78,10 @@ namespace MOSES.AAR
 			sw.Reset();
 			sw.Start();
 			elapsedTime = 0;
-			action.Clear();
+			recordedActions.Clear();
 			foreach(Actor a in avatars.Values)
 			{
-				action.Enqueue(new ActorEvent(AAREvent.AddActor, a.firstName, a.lastName, a.appearance, a.Position, elapsedTime));
+				recordedActions.Enqueue(new ActorEvent(AAREvent.AddActor, a.firstName, a.lastName, a.appearance, a.Position, elapsedTime));
 			}
 			log("Record Start");
 			return true;
@@ -136,7 +138,7 @@ namespace MOSES.AAR
 				log(string.Format("New Presence: {0} , tracking {1} Actors", this.avatars[client.UUID].firstName, this.avatars.Count));
 				if(this.state == AARState.recording)
 				{
-					action.Enqueue(new ActorEvent(AAREvent.AddActor, avatars[client.UUID].firstName, avatars[client.UUID].lastName, avatars[client.UUID].appearance, avatars[client.UUID].Position, elapsedTime));
+					recordedActions.Enqueue(new ActorEvent(AAREvent.AddActor, avatars[client.UUID].firstName, avatars[client.UUID].lastName, avatars[client.UUID].appearance, avatars[client.UUID].Position, elapsedTime));
 				}
 				return true;
 			}
@@ -151,7 +153,7 @@ namespace MOSES.AAR
 					this.avatars[client.UUID].Position = client.AbsolutePosition;
 					if(this.state == AARState.recording)
 					{
-						action.Enqueue(new ActorEvent(AAREvent.MoveActor, avatars[client.UUID].firstName, avatars[client.UUID].lastName, avatars[client.UUID].appearance, avatars[client.UUID].Position, elapsedTime));
+						recordedActions.Enqueue(new ActorEvent(AAREvent.MoveActor, avatars[client.UUID].firstName, avatars[client.UUID].lastName, avatars[client.UUID].appearance, avatars[client.UUID].Position, elapsedTime));
 					}
 					return true;
 				}
@@ -165,7 +167,7 @@ namespace MOSES.AAR
 			{
 				if(this.state == AARState.recording)
 				{
-					action.Enqueue(new ActorEvent(AAREvent.RemoveActor, avatars[uuid].firstName, avatars[uuid].lastName, avatars[uuid].appearance, avatars[uuid].Position, elapsedTime));
+					recordedActions.Enqueue(new ActorEvent(AAREvent.RemoveActor, avatars[uuid].firstName, avatars[uuid].lastName, avatars[uuid].appearance, avatars[uuid].Position, elapsedTime));
 				}
 				this.avatars.Remove(uuid);
 				return true;
@@ -199,19 +201,28 @@ namespace MOSES.AAR
 				log("STATE unknown");
 				break;
 			}
-			log(string.Format("Tracked {0} actions", action.Count));
+			log(string.Format("Tracked {0} actions", recordedActions.Count));
 		}
 
 		private void processPlayback()
 		{
-			if(action.Count == 0){
+			if(recordedActions.Count == 0){
 				state = AARState.stopped;
 				log("Playback Completed");
+				foreach(Actor a in stooges.Values)
+				{
+					dispatch.deleteActor(a.uuid);
+				}
+				stooges.Clear();
+				Queue<Event> tmp = processedActions;
+				processedActions = recordedActions;
+				recordedActions = tmp;
 				return;
 			}
-			log(string.Format("playback at elapsed {0}, next event at {1}", elapsedTime, action.Peek().time));
-			while( action.Count > 0 && elapsedTime > action.Peek().time){
-				var e = action.Dequeue();
+			log(string.Format("playback at elapsed {0}, next event at {1}", elapsedTime, recordedActions.Peek().time));
+			while( recordedActions.Count > 0 && elapsedTime > recordedActions.Peek().time){
+				var e = recordedActions.Dequeue();
+				processedActions.Enqueue(e);
 				switch(e.type){
 				case AAREvent.AddActor:
 					ActorEvent av = (ActorEvent)e;
