@@ -10,6 +10,7 @@ using OpenSim.Region.Framework.Interfaces;
 using OpenSim.Region.Framework.Scenes;
 
 using Mono.Addins;
+using OpenMetaverse;
 
 [assembly: Addin("AARModule", "0.1")]
 [assembly: AddinDependency("OpenSim", "0.5")]
@@ -17,14 +18,14 @@ using Mono.Addins;
 namespace MOSES.AAR
 {
 	[Extension(Path = "/OpenSim/RegionModules", NodeName = "RegionModule", Id = "AARModule")]
-	public class AARModule : INonSharedRegionModule
+	public class AARModule : INonSharedRegionModule, MOSES.AAR.IDispatch
 	{
 
 		private Scene m_scene;
 		private static ILog m_log;
 		private AAR aar;
 
-		#region INonSharedRegionModule
+		#region RegionModule
 
 		public string Name { get { return "AARModule"; } }
 
@@ -32,7 +33,7 @@ namespace MOSES.AAR
 
 		public AARModule()
 		{
-			this.aar = new AAR(delegate(string s){m_log.DebugFormat("[AAR]: {0}", s);});
+			this.aar = new AAR(delegate(string s){m_log.DebugFormat("[AAR]: {0}", s);}, this);
 		}
 
 		public void Initialise(IConfigSource source)
@@ -59,8 +60,9 @@ namespace MOSES.AAR
 			m_scene.EventManager.OnAvatarAppearanceChange += this.EventManager_OnAvatarAppearanceChange;
 			m_scene.EventManager.OnClientMovement += this.EventManager_OnClientMovement;
 			m_scene.EventManager.OnSignificantClientMovement += this.EventManager_OnClientMovement;
-			m_scene.EventManager.OnMakeChildAgent += this.EventManager_OnAddActor;
-			m_scene.EventManager.OnMakeRootAgent += this.EventManager_OnRemoveActor;
+			m_scene.EventManager.OnMakeChildAgent += this.EventManager_OnRemoveActor;
+			m_scene.EventManager.OnMakeRootAgent += this.EventManager_OnAddActor;
+			m_scene.EventManager.OnFrame += this.EventManager_OnFrame;
 			m_log.DebugFormat("[AAR]: Region {0} Added", scene.RegionInfo.RegionName);
 		}
 
@@ -73,8 +75,9 @@ namespace MOSES.AAR
 			m_scene.EventManager.OnAvatarAppearanceChange -= this.EventManager_OnAvatarAppearanceChange;
 			m_scene.EventManager.OnClientMovement -= this.EventManager_OnClientMovement;
 			m_scene.EventManager.OnSignificantClientMovement += this.EventManager_OnClientMovement;
-			m_scene.EventManager.OnMakeChildAgent += this.EventManager_OnAddActor;
-			m_scene.EventManager.OnMakeRootAgent += this.EventManager_OnRemoveActor;
+			m_scene.EventManager.OnMakeChildAgent += this.EventManager_OnRemoveActor;
+			m_scene.EventManager.OnMakeRootAgent += this.EventManager_OnAddActor;
+			m_scene.EventManager.OnFrame += this.EventManager_OnFrame;
 			m_scene.UnregisterModuleCommander(m_commander.Name);
 		}
 
@@ -84,9 +87,15 @@ namespace MOSES.AAR
 			initCommander();
 
 		}
-        #endregion
+
+		#endregion
 
 		#region EventManager
+
+		private void EventManager_OnFrame()
+		{
+			aar.tick();
+		}
 
 		private void EventManager_OnPluginConsole(string[] args)
 		{
@@ -153,21 +162,22 @@ OnAttach
 
 		#endregion
 
+		#region Console
+
 		private void statusAction(Object[] args)
 		{
 			//MainConsole.Instance.OutputFormat("aar test print using MainConsole Output format");
-			MainConsole.Instance.Output("aar status function");
+			aar.printActionList();
+
 		}
 
 		private void recordAction(Object[] args)
 		{
-			m_log.Debug("[AAR]: AAR record scene start");
 			this.aar.startRecording();
 		}
 
 		private void stopAction(Object[] args)
 		{
-			m_log.Debug("[AAR]: AAR record/play scene stop");
 			if(this.aar.state == AARState.error)
 			{
 				m_log.Debug("[AAR]: AAR stop called, but AAR in error");
@@ -184,7 +194,6 @@ OnAttach
 
 		private void playAction(Object[] args)
 		{
-			m_log.Debug("[AAR]: AAR play scene start");
 			this.aar.startPlaying();
 		}
 
@@ -208,5 +217,39 @@ OnAttach
 			m_scene.RegisterModuleCommander(m_commander);
 			m_log.Debug("[AAR]: commander initialized and registered");
 		}
+		#endregion
+
+		#region Dispatch
+
+		public UUID createActor(string name, Vector3 position)
+		{
+			string rawSogId = string.Format("00000000-0000-0000-0000-{0:X12}", 0x10);
+			SceneObjectGroup sog 
+				= new SceneObjectGroup(
+					new SceneObjectPart(
+					UUID.Zero, PrimitiveBaseShape.Default, Vector3.Zero, Quaternion.Identity, Vector3.Zero) 
+					{ Name = name, UUID = new UUID(rawSogId), Scale = new Vector3(1, 1, 1) });
+			if(!m_scene.AddNewSceneObject(sog, false))
+			{
+				m_log.Debug("[AAR]: Error adding new object to scene, playback halted");
+				aar.stopPlaying();
+			}
+			return sog.UUID;
+		}
+
+		public void moveActor(UUID uuid, Vector3 position)
+		{
+			SceneObjectGroup sog = m_scene.GetGroupByPrim(uuid);
+			sog.AbsolutePosition = position;
+			sog.ScheduleGroupForTerseUpdate();
+		}
+
+		public void deleteActor(UUID uuid)
+		{
+			SceneObjectGroup sog = m_scene.GetGroupByPrim(uuid);
+			m_scene.RemoveGroupTarget(sog);
+		}
+
+		#endregion
 	}
 }
