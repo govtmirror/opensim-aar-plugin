@@ -27,6 +27,7 @@ namespace MOSES.AAR
 		private static ILog m_log;
 		private AAR aar;
 		private AARNPCModule npc;
+		private Dictionary<UUID,ScenePresence> stooges = new Dictionary<UUID, ScenePresence>();
 
 		#region RegionModule
 
@@ -257,14 +258,26 @@ OnAttach
 			return npc.CreateNPC(firstName,lastName,position,UUID.Zero,false,m_scene,appearance);
 		}
 
-		public void moveActor(UUID uuid, Vector3 position)
+		public void moveActor(UUID uuid, Vector3 position, OpenSim.Framework.Animation animation)
 		{
+			if(! stooges.ContainsKey(uuid))
+			{
+				ScenePresence presence;
+				m_scene.TryGetScenePresence(uuid, out presence);
+				stooges[uuid] = presence;
+			}
 			npc.MoveToTarget(uuid, m_scene, position,true,false,false);
+			stooges[uuid].AgentControlFlags = 0;
+			if(stooges[uuid].Animator.Animations.DefaultAnimation != animation)
+			{
+				stooges[uuid].Animator.AddAnimation(animation.AnimID,animation.ObjectID);
+			}
 		}
 
 		public void deleteActor(UUID uuid)
 		{
 			npc.DeleteNPC(uuid, m_scene);
+			stooges.Remove(uuid);
 		}
 
 		#endregion

@@ -22,13 +22,15 @@ namespace MOSES.AAR
 	{
 		AddActor,
 		RemoveActor,
-		MoveActor
+		MoveActor,
+		EventBegin,
+		EventEnd
 	}
 
 	public interface IDispatch
 	{
 		UUID createActor(string firstName, string lastName, AvatarAppearance appearance, Vector3 position);
-		void moveActor(UUID uuid, Vector3 position);
+		void moveActor(UUID uuid, Vector3 position, OpenSim.Framework.Animation animation);
 		void deleteActor(UUID uuid);
 	}
 
@@ -79,6 +81,7 @@ namespace MOSES.AAR
 			sw.Start();
 			elapsedTime = 0;
 			recordedActions.Clear();
+			recordedActions.Enqueue(new Event(AAREvent.EventBegin, elapsedTime));
 			foreach(Actor a in avatars.Values)
 			{
 				recordedActions.Enqueue(new ActorEvent(AAREvent.AddActor, a.firstName, a.lastName, a.appearance, a.Position, elapsedTime));
@@ -94,6 +97,7 @@ namespace MOSES.AAR
 				log("Error stopping: AAR is not recording");
 				return false;
 			}
+			recordedActions.Enqueue(new Event(AAREvent.EventEnd, elapsedTime));
 			this.state = AARState.stopped;
 			sw.Stop();
 			return true;
@@ -153,7 +157,15 @@ namespace MOSES.AAR
 					this.avatars[client.UUID].Position = client.AbsolutePosition;
 					if(this.state == AARState.recording)
 					{
-						recordedActions.Enqueue(new ActorEvent(AAREvent.MoveActor, avatars[client.UUID].firstName, avatars[client.UUID].lastName, avatars[client.UUID].appearance, avatars[client.UUID].Position, elapsedTime));
+						recordedActions.Enqueue(new ActorMovedEvent(
+							AAREvent.MoveActor, 
+							avatars[client.UUID].firstName, 
+							avatars[client.UUID].lastName, 
+							avatars[client.UUID].appearance, 
+							client.Animator.Animations.DefaultAnimation,
+							avatars[client.UUID].Position, 
+							elapsedTime
+						));
 					}
 					return true;
 				}
@@ -206,46 +218,47 @@ namespace MOSES.AAR
 
 		private void processPlayback()
 		{
-			if(recordedActions.Count == 0){
-				state = AARState.stopped;
-				log("Playback Completed");
-				foreach(Actor a in stooges.Values)
-				{
-					dispatch.deleteActor(a.uuid);
-				}
-				stooges.Clear();
-				Queue<Event> tmp = processedActions;
-				processedActions = recordedActions;
-				recordedActions = tmp;
-				return;
-			}
-			log(string.Format("playback at elapsed {0}, next event at {1}", elapsedTime, recordedActions.Peek().time));
+			//log(string.Format("playback at elapsed {0}, next event at {1}", elapsedTime, recordedActions.Peek().time));
 			while( recordedActions.Count > 0 && elapsedTime > recordedActions.Peek().time){
 				var e = recordedActions.Dequeue();
 				processedActions.Enqueue(e);
 				switch(e.type){
+				case AAREvent.EventBegin:
+					break;
+				case AAREvent.EventEnd:
+					state = AARState.stopped;
+					log("Playback Completed");
+					foreach(Actor a in stooges.Values)
+					{
+						dispatch.deleteActor(a.uuid);
+					}
+					stooges.Clear();
+					Queue<Event> tmp = processedActions;
+					processedActions = recordedActions;
+					recordedActions = tmp;
+					return;
 				case AAREvent.AddActor:
-					ActorEvent av = (ActorEvent)e;
-					log(string.Format("Adding actor {0} at {1}", av.fullName, av.position));
-					UUID uuid = dispatch.createActor(av.firstName, av.lastName, new AvatarAppearance(av.appearance), av.position);
-					stooges[av.fullName] = new Actor(uuid,av.firstName, av.lastName,av.position, av.appearance);
+					ActorEvent ae = (ActorEvent)e;
+					log(string.Format("Adding actor {0} at {1}", ae.fullName, ae.position));
+					UUID uuid = dispatch.createActor(ae.firstName, ae.lastName, new AvatarAppearance(ae.appearance), ae.position);
+					stooges[ae.fullName] = new Actor(uuid,ae.firstName, ae.lastName,ae.position, ae.appearance);
 					break;
 				case AAREvent.MoveActor:
-					av = (ActorEvent)e;
-					if(stooges.ContainsKey(av.fullName))
+					ActorMovedEvent ame = (ActorMovedEvent)e;
+					if(stooges.ContainsKey(ame.fullName))
 					{
-						log(string.Format("Moving actor {0} to {1}", av.fullName, av.position));
-						dispatch.moveActor(stooges[av.fullName].uuid, av.position);
+						log(string.Format("Moving actor {0} to {1}", ame.fullName, ame.position));
+						dispatch.moveActor(stooges[ame.fullName].uuid, ame.position, ame.animation);
 					}
 					else
 					{
-						log(string.Format("Received avatar moved event for nonexistant entity {0}", av.fullName));
+						log(string.Format("Received avatar moved event for nonexistant entity {0}", ame.fullName));
 					}
 					break;
 				case AAREvent.RemoveActor:
-					av = (ActorEvent)e;
-					log(string.Format("Removing actor {0}", av.fullName));
-					dispatch.deleteActor(stooges[av.fullName].uuid);
+					ae = (ActorEvent)e;
+					log(string.Format("Removing actor {0}", ae.fullName));
+					dispatch.deleteActor(stooges[ae.fullName].uuid);
 					break;
 				default:
 					log("Invalid command during playback");
@@ -255,11 +268,10 @@ namespace MOSES.AAR
 		}
 	}
 
-	abstract class Event
+	class Event
 	{
 		public AAREvent type;
 		public long time;
-		public Vector3 position;
 
 		public Event(AAREvent type, long time)
 		{
@@ -273,6 +285,7 @@ namespace MOSES.AAR
 		public string firstName;
 		public string lastName;
 		public OSDMap appearance;
+		public Vector3 position;
 		public string fullName {get { return string.Format("{0} {1}", this.firstName, this.lastName); } }
 
 		public ActorEvent(AAREvent eventType, string firstName, string lastName, OSDMap appearance, Vector3 position, long time) : base(eventType, time)
@@ -281,6 +294,17 @@ namespace MOSES.AAR
 			this.lastName = lastName;
 			this.appearance = appearance;
 			this.position = position;
+		}
+	}
+
+	class ActorMovedEvent : ActorEvent
+	{
+		public OpenSim.Framework.Animation animation;
+
+		public ActorMovedEvent(AAREvent eventType, string firstName, string lastName, OSDMap appearance, OpenSim.Framework.Animation animation, Vector3 position, long time) : 
+			base(eventType, firstName, lastName, appearance, position, time)
+		{
+			this.animation = animation;
 		}
 	}
 
