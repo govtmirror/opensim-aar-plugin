@@ -13,6 +13,7 @@ using OpenSim.Region.OptionalModules.World.NPC;
 using Mono.Addins;
 using OpenMetaverse;
 using System.Collections.Generic;
+using OpenMetaverse.StructuredData;
 
 [assembly: Addin("AARModule", "0.1")]
 [assembly: AddinDependency("OpenSim", "0.5")]
@@ -28,6 +29,7 @@ namespace MOSES.AAR
 		private AAR aar;
 		private AARNPCModule npc;
 		private Dictionary<UUID,ScenePresence> stooges = new Dictionary<UUID, ScenePresence>();
+		//private AARListener listener;
 
 		#region RegionModule
 
@@ -93,6 +95,10 @@ namespace MOSES.AAR
 			m_log.DebugFormat("[AAR]: Region {0} Loaded", scene.RegionInfo.RegionName);
 			initCommander();
 			this.npc.RegionLoaded(scene);
+			//listener = new AARListener(m_scene,delegate(string s){m_log.DebugFormat("[AAR]: {0}", s);});
+			//m_scene.AddNewAgent(listener,PresenceType.User);
+			//m_scene.SubscribeToClientEvents(listener);
+			//m_scene.SubscribeToClientGridEvents(listener);
 		}
 
 		#endregion
@@ -139,6 +145,11 @@ namespace MOSES.AAR
 		private void EventManager_OnClientMovement(ScenePresence presence)
 		{
 			this.aar.actorMoved(presence);
+			//OpenSim.Framework.Animation[] animation = presence.Animator.Animations.ToArray();
+			//foreach(OpenSim.Framework.Animation a in animation)
+			//{
+			//	m_log.DebugFormat("animation {0}: {1}", a.AnimID, a.ObjectID);
+			//}
 		}
 
 		/*
@@ -253,31 +264,63 @@ OnAttach
 			m_scene.RemoveGroupTarget(sog);
 		*/
 
-		public UUID createActor(string firstName, string lastName, AvatarAppearance appearance, Vector3 position)
+		public void createActor(UUID originalUuid, string firstName, string lastName)
 		{
-			return npc.CreateNPC(firstName,lastName,position,UUID.Zero,false,m_scene,appearance);
+			if(stooges.ContainsKey(originalUuid))
+			{
+				return;
+			}
+			UUID uuid = npc.CreateNPC(firstName,lastName,Vector3.Zero,UUID.Zero,false,m_scene, new AvatarAppearance());
+			ScenePresence presence;
+			m_scene.TryGetScenePresence(uuid, out presence);
+			stooges[originalUuid] = presence;
 		}
 
-		public void moveActor(UUID uuid, Vector3 position, OpenSim.Framework.Animation animation)
+		public void moveActor(UUID uuid, Vector3 position, Quaternion rotation, Vector3 velocity, bool isFlying, uint control)
 		{
-			if(! stooges.ContainsKey(uuid))
-			{
-				ScenePresence presence;
-				m_scene.TryGetScenePresence(uuid, out presence);
-				stooges[uuid] = presence;
-			}
+			stooges[uuid].AgentControlFlags = control;
+			stooges[uuid].AbsolutePosition = position;
+			stooges[uuid].Velocity = velocity;
+			stooges[uuid].Rotation = rotation;
+			stooges[uuid].Flying = isFlying;
+			//npc.MoveToTarget(uuid,m_scene,position,!isFlying,false,false);
+
+			/*
 			npc.MoveToTarget(uuid, m_scene, position,true,false,false);
 			stooges[uuid].AgentControlFlags = 0;
 			if(stooges[uuid].Animator.Animations.DefaultAnimation != animation)
 			{
 				stooges[uuid].Animator.AddAnimation(animation.AnimID,animation.ObjectID);
 			}
+			*/
+		}
+
+		public void animateActor(UUID uuid, OpenSim.Framework.Animation[] animations)
+		{
+			stooges[uuid].Animator.ResetAnimations();
+			foreach(OpenSim.Framework.Animation a in animations)
+			{
+				stooges[uuid].Animator.AddAnimation(a.AnimID,a.ObjectID);
+			}
+		}
+
+		public void changeAppearance(UUID uuid, OSDMap appearance){
+			npc.SetNPCAppearance(stooges[uuid].UUID, new AvatarAppearance(appearance), m_scene);
 		}
 
 		public void deleteActor(UUID uuid)
 		{
-			npc.DeleteNPC(uuid, m_scene);
+			npc.DeleteNPC(stooges[uuid].UUID, m_scene);
 			stooges.Remove(uuid);
+		}
+
+		public void deleteAllActors()
+		{
+			foreach(ScenePresence sp in stooges.Values)
+			{
+				npc.DeleteNPC(sp.UUID, m_scene);
+			}
+			stooges.Clear();
 		}
 
 		#endregion
