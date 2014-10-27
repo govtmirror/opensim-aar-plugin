@@ -5,6 +5,7 @@ using OpenMetaverse;
 using System.Diagnostics;
 using OpenSim.Framework;
 using OpenMetaverse.StructuredData;
+using System.Linq;
 
 namespace MOSES.AAR
 {
@@ -80,7 +81,7 @@ namespace MOSES.AAR
 			{
 				recordedActions.Enqueue(new ActorAddedEvent(a.firstName, a.lastName, a.uuid, elapsedTime));
 				recordedActions.Enqueue(new ActorAppearanceEvent(a.uuid, a.appearance, elapsedTime));
-				recordedActions.Enqueue(new ActorMovedEvent(a.uuid,a.controlFlags, a.position, a.rotation, a.velocity, a.isFlying, elapsedTime));
+				recordedActions.Enqueue(new ActorMovedEvent(a, elapsedTime));
 				recordedActions.Enqueue(new ActorAnimationEvent(a.uuid, a.animations, elapsedTime));
 			}
 			log("Record Start");
@@ -141,43 +142,60 @@ namespace MOSES.AAR
 				{
 					recordedActions.Enqueue(new ActorAddedEvent(avatars[client.UUID].firstName, avatars[client.UUID].lastName, client.UUID, elapsedTime));
 					recordedActions.Enqueue(new ActorAppearanceEvent(client.UUID, avatars[client.UUID].appearance,elapsedTime));
-					recordedActions.Enqueue(new ActorMovedEvent(client.UUID,avatars[client.UUID].controlFlags,avatars[client.UUID].position,avatars[client.UUID].rotation,avatars[client.UUID].velocity, avatars[client.UUID].isFlying, elapsedTime));
+					recordedActions.Enqueue(new ActorMovedEvent(avatars[client.UUID], elapsedTime));
 					recordedActions.Enqueue(new ActorAnimationEvent(client.UUID, avatars[client.UUID].animations, elapsedTime));
 				}
 				return true;
 			}
 		}
 
-		public bool actorMoved(ScenePresence client)
+		public bool actorAppearanceChanged(UUID uuid, OSDMap appearance)
+		{
+			if(this.avatars.ContainsKey(uuid))
+			{
+				if(this.state == AARState.recording)
+				{
+					recordedActions.Enqueue(new ActorAppearanceEvent(uuid, appearance,elapsedTime));
+					return true;
+				}
+			}
+			return false;
+		}
+
+		public bool actorPresenceChanged(ScenePresence client)
 		{
 			if(this.avatars.ContainsKey(client.UUID))
 			{
-				if( client.AgentControlFlags != this.avatars[client.UUID].controlFlags ||
-				   client.AbsolutePosition != this.avatars[client.UUID].position ||
-				   client.Flying != this.avatars[client.UUID].isFlying ||
-				   client.Velocity != this.avatars[client.UUID].velocity)
+				if(state != AARState.recording)
 				{
-					this.avatars[client.UUID].controlFlags = client.AgentControlFlags;
-					this.avatars[client.UUID].position = client.AbsolutePosition;
-					this.avatars[client.UUID].rotation = client.Rotation;
-					this.avatars[client.UUID].velocity = client.Velocity;
-					this.avatars[client.UUID].isFlying = client.Flying;
-					this.avatars[client.UUID].animations = client.Animator.Animations.ToArray();
-
-					if(this.state == AARState.recording)
-					{
-						recordedActions.Enqueue(new ActorMovedEvent( 
-							client.UUID, 
-							avatars[client.UUID].controlFlags,
-							avatars[client.UUID].position,
-							avatars[client.UUID].rotation,
-							avatars[client.UUID].velocity,
-							avatars[client.UUID].isFlying,
-							elapsedTime
-						));
-					}
-					return true;
+					return false;
 				}
+				//determine what has changed about the avatar
+				//Position/Control flags
+				if(avatars[client.UUID].movementChanged(client))
+				{
+					recordedActions.Enqueue(new ActorMovedEvent(client, elapsedTime));
+					avatars[client.UUID].updateMovement(client);
+				}
+
+				//animation update
+				OpenSim.Framework.Animation[] anims = client.Animator.Animations.ToArray();
+				if( ! anims.SequenceEqual(avatars[client.UUID].animations))
+				{
+					recordedActions.Enqueue(new ActorAnimationEvent(client.UUID,anims, elapsedTime));
+					avatars[client.UUID].animations = anims;
+				}
+
+				//client.Animator.Animations.ToArray;
+				//client.Appearance; //not really, we have a separate signal for appeatance changed
+
+				//client.GetAttachments;
+				////client.GetWorldRotation;
+				//client.IsSatOnObject;
+				//client.Lookat;
+
+				//client.SitGround;
+
 			}
 			return false;
 		}
@@ -257,6 +275,7 @@ namespace MOSES.AAR
 		public Vector3 position;
 		public Quaternion rotation;
 		public Vector3 velocity;
+		public Vector3 angularVelocity;
 		public bool isFlying;
 		public OpenSim.Framework.Animation[] animations;
 
@@ -273,19 +292,31 @@ namespace MOSES.AAR
 			this.isFlying = presence.Flying;
 			this.velocity = presence.Velocity;
 			this.animations = presence.Animator.Animations.ToArray();
+			this.angularVelocity = presence.AngularVelocity;
 		}
 
-		public Actor(UUID uuid, string firstName, string lastName, uint controlFlags, OSDMap appearance, Vector3 position, Quaternion rotation, Vector3 velocity, bool isFlying)
+		public bool movementChanged(ScenePresence client)
 		{
-			this.uuid = uuid;
-			this.firstName = firstName;
-			this.lastName = lastName;
-			this.controlFlags = controlFlags;
-			this.appearance = appearance;
-			this.fullname = string.Format("{0} {1}", this.firstName, this.lastName);
-			this.position = position;
-			this.isFlying = isFlying;
-			this.velocity = velocity;
+			if( client.AgentControlFlags != controlFlags ||
+			   client.AbsolutePosition != position ||
+			   client.Flying != isFlying ||
+			   client.Velocity != velocity ||
+			   client.Rotation != rotation ||
+			   client.AngularVelocity != angularVelocity)
+			{
+				return true;
+			}
+			return false;
+		}
+
+		public void updateMovement(ScenePresence presence)
+		{
+			controlFlags = presence.AgentControlFlags;
+			position = presence.AbsolutePosition;
+			isFlying = presence.Flying;
+			velocity = presence.Velocity;
+			rotation = presence.Rotation;
+			angularVelocity = presence.AngularVelocity;
 		}
 	}
 }

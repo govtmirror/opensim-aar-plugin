@@ -123,15 +123,28 @@ namespace MOSES.AAR
 		public bool isFlying;
 		public Vector3 position;
 		public Quaternion rotation;
+		public Vector3 AngularVelocity;
 
-		public ActorMovedEvent(UUID uuid, uint controlFlags, Vector3 position, Quaternion rotation, Vector3 velocity, bool isFlying, long time) : 
-			base(uuid, time)
+		public ActorMovedEvent(ScenePresence presence, long time) : 
+			base(presence.UUID, time)
 		{
-			this.controlFlags = controlFlags;
-			this.velocity = velocity;
-			this.isFlying = isFlying;
-			this.position = position;
-			this.rotation = rotation;
+			this.controlFlags = presence.AgentControlFlags;
+			this.velocity = presence.Velocity;
+			this.isFlying = presence.Flying;
+			this.position = presence.AbsolutePosition;
+			this.rotation = presence.Rotation;
+			this.AngularVelocity = presence.AngularVelocity;
+		}
+
+		public ActorMovedEvent(Actor a, long time) :
+			base(a.uuid, time)
+		{
+			this.controlFlags = a.controlFlags;
+			this.velocity = a.velocity;
+			this.isFlying = a.isFlying;
+			this.position = a.position;
+			this.rotation = a.rotation;
+			this.AngularVelocity = a.angularVelocity;
 		}
 
 		override public void process(IDispatch dispatch, Logger log)

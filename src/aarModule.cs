@@ -61,14 +61,17 @@ namespace MOSES.AAR
 		public void AddRegion(Scene scene)
 		{
 			m_scene = scene;
+
 			m_scene.EventManager.OnPluginConsole += this.EventManager_OnPluginConsole;
+
 			m_scene.EventManager.OnNewPresence += this.EventManager_OnAddActor;
 			m_scene.EventManager.OnRemovePresence += this.EventManager_OnRemoveActor;
 			m_scene.EventManager.OnAvatarAppearanceChange += this.EventManager_OnAvatarAppearanceChange;
-			m_scene.EventManager.OnClientMovement += this.EventManager_OnClientMovement;
-			m_scene.EventManager.OnSignificantClientMovement += this.EventManager_OnClientMovement;
+			m_scene.EventManager.OnScenePresenceUpdated += this.EventManager_OnScenePresenceUpdated;
+
 			m_scene.EventManager.OnMakeChildAgent += this.EventManager_OnRemoveActor;
 			m_scene.EventManager.OnMakeRootAgent += this.EventManager_OnAddActor;
+
 			m_scene.EventManager.OnRegionHeartbeatEnd += this.EventManager_OnFrame;
 			m_log.DebugFormat("[AAR]: Region {0} Added", scene.RegionInfo.RegionName);
 			this.npc.AddRegion(scene);
@@ -81,8 +84,8 @@ namespace MOSES.AAR
 			m_scene.EventManager.OnNewPresence -= this.EventManager_OnAddActor;
 			m_scene.EventManager.OnRemovePresence -= this.EventManager_OnRemoveActor;
 			m_scene.EventManager.OnAvatarAppearanceChange -= this.EventManager_OnAvatarAppearanceChange;
-			m_scene.EventManager.OnClientMovement -= this.EventManager_OnClientMovement;
-			m_scene.EventManager.OnSignificantClientMovement += this.EventManager_OnClientMovement;
+			m_scene.EventManager.OnScenePresenceUpdated -= this.EventManager_OnScenePresenceUpdated;
+
 			m_scene.EventManager.OnMakeChildAgent += this.EventManager_OnRemoveActor;
 			m_scene.EventManager.OnMakeRootAgent += this.EventManager_OnAddActor;
 			m_scene.EventManager.OnRegionHeartbeatEnd += this.EventManager_OnFrame;
@@ -139,17 +142,12 @@ namespace MOSES.AAR
 
 		private void EventManager_OnAvatarAppearanceChange(ScenePresence presence)
 		{
-			m_log.DebugFormat("[AAR]: AvatarAppearanceChanged {0}", presence.Firstname);
+			aar.actorAppearanceChanged(presence.UUID,presence.Appearance.Pack());
 		}
 
-		private void EventManager_OnClientMovement(ScenePresence presence)
+		private void EventManager_OnScenePresenceUpdated(ScenePresence presence)
 		{
-			this.aar.actorMoved(presence);
-			//OpenSim.Framework.Animation[] animation = presence.Animator.Animations.ToArray();
-			//foreach(OpenSim.Framework.Animation a in animation)
-			//{
-			//	m_log.DebugFormat("animation {0}: {1}", a.AnimID, a.ObjectID);
-			//}
+			this.aar.actorPresenceChanged(presence);
 		}
 
 		/*
