@@ -29,7 +29,6 @@ namespace MOSES.AAR
 		private AAR aar;
 		private AARNPCModule npc;
 		private Dictionary<UUID,ScenePresence> stooges = new Dictionary<UUID, ScenePresence>();
-		//private AARListener listener;
 
 		#region RegionModule
 
@@ -98,10 +97,6 @@ namespace MOSES.AAR
 			m_log.DebugFormat("[AAR]: Region {0} Loaded", scene.RegionInfo.RegionName);
 			initCommander();
 			this.npc.RegionLoaded(scene);
-			//listener = new AARListener(m_scene,delegate(string s){m_log.DebugFormat("[AAR]: {0}", s);});
-			//m_scene.AddNewAgent(listener,PresenceType.User);
-			//m_scene.SubscribeToClientEvents(listener);
-			//m_scene.SubscribeToClientGridEvents(listener);
 		}
 
 		#endregion
