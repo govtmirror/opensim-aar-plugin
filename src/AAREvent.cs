@@ -18,14 +18,14 @@ namespace MOSES.AAR
 			this.time = time;
 		}
 
-		abstract public void process(IDispatch dispatch, Logger log);
+		abstract public void process(Replay dispatch, Logger log);
 	}
 
 	class EventStart : AAREvent
 	{
 		public EventStart(long time) : base(time){}
 
-		override public void process(IDispatch dispatch, Logger log)
+		override public void process(Replay dispatch, Logger log)
 		{
 			log("AAR Event Playback Start");
 		}
@@ -35,7 +35,7 @@ namespace MOSES.AAR
 	{
 		public EventEnd(long time) : base(time){}
 
-		override public void process(IDispatch dispatch, Logger log)
+		override public void process(Replay dispatch, Logger log)
 		{
 			log("AAR Event Playback Completed");
 		}
@@ -65,7 +65,7 @@ namespace MOSES.AAR
 			this.lastName = lastName;
 		}
 
-		override public void process(IDispatch dispatch, Logger log)
+		override public void process(Replay dispatch, Logger log)
 		{
 			log(string.Format("Adding actor {0} as {1}", this.uuid, this.fullName));
 			dispatch.createActor(this.uuid,this.firstName,this.lastName);
@@ -77,7 +77,7 @@ namespace MOSES.AAR
 		public ActorRemovedEvent(UUID uuid, long time)
 			: base(uuid, time){}
 
-		override public void process(IDispatch dispatch, Logger log)
+		override public void process(Replay dispatch, Logger log)
 		{
 			log(string.Format("Removing actor {0}", this.uuid));
 			dispatch.deleteActor(this.uuid);
@@ -94,7 +94,7 @@ namespace MOSES.AAR
 			this.appearance = appearance;
 		}
 
-		override public void process(IDispatch dispatch, Logger log)
+		override public void process(Replay dispatch, Logger log)
 		{
 			dispatch.changeAppearance(this.uuid,this.appearance);
 		}
@@ -110,7 +110,7 @@ namespace MOSES.AAR
 			this.animations = animations;
 		}
 
-		override public void process(IDispatch dispatch, Logger log)
+		override public void process(Replay dispatch, Logger log)
 		{
 			dispatch.animateActor(this.uuid,this.animations);
 		}
@@ -136,7 +136,7 @@ namespace MOSES.AAR
 			this.AngularVelocity = presence.AngularVelocity;
 		}
 
-		public ActorMovedEvent(Actor a, long time) :
+		public ActorMovedEvent(AARActor a, long time) :
 			base(a.uuid, time)
 		{
 			this.controlFlags = a.controlFlags;
@@ -147,7 +147,7 @@ namespace MOSES.AAR
 			this.AngularVelocity = a.angularVelocity;
 		}
 
-		override public void process(IDispatch dispatch, Logger log)
+		override public void process(Replay dispatch, Logger log)
 		{
 			log(string.Format("Moving actor {0} to {1}", this.uuid, this.position));
 			dispatch.moveActor(this.uuid, this.position, this.rotation, this.velocity, this.isFlying, this.controlFlags);

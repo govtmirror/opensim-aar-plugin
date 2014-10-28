@@ -21,14 +21,13 @@ using OpenMetaverse.StructuredData;
 namespace MOSES.AAR
 {
 	[Extension(Path = "/OpenSim/RegionModules", NodeName = "RegionModule", Id = "AARModule")]
-	public class AARModule : INonSharedRegionModule, MOSES.AAR.IDispatch
+	public class AARModule : INonSharedRegionModule
 	{
 
 		private Scene m_scene;
 		private static ILog m_log;
 		private AAR aar;
-		private AARNPCModule npc;
-		private Dictionary<UUID,ScenePresence> stooges = new Dictionary<UUID, ScenePresence>();
+		private Replay dispatch;
 
 		#region RegionModule
 
@@ -38,8 +37,7 @@ namespace MOSES.AAR
 
 		public AARModule()
 		{
-			this.aar = new AAR(delegate(string s){m_log.DebugFormat("[AAR]: {0}", s);}, this);
-			this.npc = new AARNPCModule();
+			this.aar = new AAR(delegate(string s){m_log.DebugFormat("[AAR]: {0}", s);}, dispatch);
 		}
 
 		public void Initialise(IConfigSource source)
@@ -61,91 +59,54 @@ namespace MOSES.AAR
 		{
 			m_scene = scene;
 
-			m_scene.EventManager.OnPluginConsole += this.EventManager_OnPluginConsole;
 
-			m_scene.EventManager.OnNewPresence += this.EventManager_OnAddActor;
-			m_scene.EventManager.OnRemovePresence += this.EventManager_OnRemoveActor;
-			m_scene.EventManager.OnAvatarAppearanceChange += this.EventManager_OnAvatarAppearanceChange;
-			m_scene.EventManager.OnScenePresenceUpdated += this.EventManager_OnScenePresenceUpdated;
+			/* Actor Events */
+			m_scene.EventManager.OnNewPresence 						+= OnAddActor;
+			m_scene.EventManager.OnRemovePresence 					+= OnRemoveActor;
+			m_scene.EventManager.OnAvatarAppearanceChange 			+= OnAvatarAppearanceChange;
+			m_scene.EventManager.OnScenePresenceUpdated 			+= OnScenePresenceUpdated;
+			m_scene.EventManager.OnMakeChildAgent 					+= OnRemoveActor;
+			m_scene.EventManager.OnMakeRootAgent 					+= OnAddActor;
 
-			m_scene.EventManager.OnMakeChildAgent += this.EventManager_OnRemoveActor;
-			m_scene.EventManager.OnMakeRootAgent += this.EventManager_OnAddActor;
+			/* Object Events */
+			m_scene.EventManager.OnObjectAddedToScene				+= OnObjectAddedToScene;
+			m_scene.EventManager.OnSceneObjectLoaded				+= OnObjectAddedToScene;
+			m_scene.EventManager.OnObjectBeingRemovedFromScene		+= OnObjectBeingRemovedFromScene;
+			m_scene.EventManager.OnSceneObjectPartUpdated			+= OnSceneObjectPartUpdated;
 
-			m_scene.EventManager.OnRegionHeartbeatEnd += this.EventManager_OnFrame;
+
+			m_scene.EventManager.OnPluginConsole 					+= OnPluginConsole;
+			m_scene.EventManager.OnRegionHeartbeatEnd 				+= OnFrame;
+
 			m_log.DebugFormat("[AAR]: Region {0} Added", scene.RegionInfo.RegionName);
-			this.npc.AddRegion(scene);
-		}
-
-		public void RemoveRegion(Scene scene)
-		{
-			m_log.DebugFormat("[AAR]: Region {0} Removed", scene.RegionInfo.RegionName);
-			m_scene.EventManager.OnPluginConsole -= EventManager_OnPluginConsole;
-			m_scene.EventManager.OnNewPresence -= this.EventManager_OnAddActor;
-			m_scene.EventManager.OnRemovePresence -= this.EventManager_OnRemoveActor;
-			m_scene.EventManager.OnAvatarAppearanceChange -= this.EventManager_OnAvatarAppearanceChange;
-			m_scene.EventManager.OnScenePresenceUpdated -= this.EventManager_OnScenePresenceUpdated;
-
-			m_scene.EventManager.OnMakeChildAgent += this.EventManager_OnRemoveActor;
-			m_scene.EventManager.OnMakeRootAgent += this.EventManager_OnAddActor;
-			m_scene.EventManager.OnRegionHeartbeatEnd += this.EventManager_OnFrame;
-			m_scene.UnregisterModuleCommander(m_commander.Name);
-			this.npc.RemoveRegion(scene);
-		}
-
-		public void RegionLoaded(Scene scene)
-		{
-			m_log.DebugFormat("[AAR]: Region {0} Loaded", scene.RegionInfo.RegionName);
-			initCommander();
-			this.npc.RegionLoaded(scene);
-		}
-
-		#endregion
-
-		#region EventManager
-
-		private void EventManager_OnFrame(Scene s)
-		{
-			aar.tick();
-		}
-
-		private void EventManager_OnPluginConsole(string[] args)
-		{
-			if (args[0] == "aar")
-			{
-				string[] tmpArgs = new string[args.Length - 2];
-				int i;
-				for (i = 2; i < args.Length; i++)
-					tmpArgs[i - 2] = args[i];
-
-				m_commander.ProcessConsoleCommand(args[1], tmpArgs);
-			}
-		}
-
-		private void EventManager_OnAddActor(ScenePresence presence)
-		{
-			this.aar.addActor(presence);
-		}
-
-		private void EventManager_OnRemoveActor(OpenMetaverse.UUID uuid)
-		{
-			this.aar.removeActor(uuid);
-		}
-		private void EventManager_OnRemoveActor(ScenePresence presence)
-		{
-			this.EventManager_OnRemoveActor(presence.UUID);
-		}
-
-		private void EventManager_OnAvatarAppearanceChange(ScenePresence presence)
-		{
-			aar.actorAppearanceChanged(presence.UUID,presence.Appearance.Pack());
-		}
-
-		private void EventManager_OnScenePresenceUpdated(ScenePresence presence)
-		{
-			this.aar.actorPresenceChanged(presence);
+			dispatch = new Replay(scene);
+			dispatch.npc.AddRegion(scene);
 		}
 
 		/*
+		 * 
+		 *   
+
+            Scene.EventManager.OnRegionStarted                  += OnRegionStarted;
+            Scene.EventManager.OnTerrainTainted                 += OnTerrainTainted;
+
+            Scene.EventManager.OnNewScript                      += OnLocalNewScript;
+            Scene.EventManager.OnUpdateScript                   += OnLocalUpdateScript;
+            Scene.EventManager.OnScriptReset                    += OnLocalScriptReset;
+            Scene.EventManager.OnChatBroadcast                  += OnLocalChatBroadcast;
+            Scene.EventManager.OnChatFromClient                 += OnLocalChatFromClient;
+            Scene.EventManager.OnChatFromWorld                  += OnLocalChatFromWorld;
+            Scene.EventManager.OnAttach                         += OnLocalAttach;
+            Scene.EventManager.OnObjectGrab                     += OnLocalGrabObject;
+            Scene.EventManager.OnObjectGrabbing                 += OnLocalObjectGrabbing;
+            Scene.EventManager.OnObjectDeGrab                   += OnLocalDeGrabObject;
+            Scene.EventManager.OnScriptColliderStart            += OnLocalScriptCollidingStart;
+            Scene.EventManager.OnScriptColliding                += OnLocalScriptColliding;
+            Scene.EventManager.OnScriptCollidingEnd             += OnLocalScriptCollidingEnd;
+            Scene.EventManager.OnScriptLandColliderStart        += OnLocalScriptLandCollidingStart;
+            Scene.EventManager.OnScriptLandColliding            += OnLocalScriptLandColliding;
+            Scene.EventManager.OnScriptLandColliderEnd          += OnLocalScriptLandCollidingEnd;
+		 * 
 OnShutdown/OnSceneShuttingDown	-region quitting
 OnSetRootAgentScene	???
 OnObjectGrab[bing]	-somebody grabbed something
@@ -171,7 +132,101 @@ OnOarFileLoaded [Saved]
 OnAttach
 */
 
+		public void RemoveRegion(Scene scene)
+		{
+			m_log.DebugFormat("[AAR]: Region {0} Removed", scene.RegionInfo.RegionName);
+
+			/* Actor Events */
+			m_scene.EventManager.OnNewPresence 						-= OnAddActor;
+			m_scene.EventManager.OnRemovePresence 					-= OnRemoveActor;
+			m_scene.EventManager.OnAvatarAppearanceChange 			-= OnAvatarAppearanceChange;
+			m_scene.EventManager.OnScenePresenceUpdated 			-= OnScenePresenceUpdated;
+			m_scene.EventManager.OnMakeChildAgent 					-= OnRemoveActor;
+			m_scene.EventManager.OnMakeRootAgent 					-= OnAddActor;
+
+			/* Object Events */
+			m_scene.EventManager.OnObjectAddedToScene             	-= OnObjectAddedToScene;
+			m_scene.EventManager.OnSceneObjectLoaded              	-= OnObjectAddedToScene;
+			m_scene.EventManager.OnObjectBeingRemovedFromScene    	-= OnObjectBeingRemovedFromScene;
+			m_scene.EventManager.OnSceneObjectPartUpdated         	-= OnSceneObjectPartUpdated;
+
+			m_scene.EventManager.OnPluginConsole 					-= OnPluginConsole;
+			m_scene.EventManager.OnRegionHeartbeatEnd 				-= OnFrame;
+
+			m_scene.UnregisterModuleCommander(m_commander.Name);
+			dispatch.npc.RemoveRegion(scene);
+		}
+
+		public void RegionLoaded(Scene scene)
+		{
+			m_log.DebugFormat("[AAR]: Region {0} Loaded", scene.RegionInfo.RegionName);
+			initCommander();
+			dispatch.npc.RegionLoaded(scene);
+		}
+
 		#endregion
+
+		#region onObject
+
+		private void OnObjectAddedToScene(SceneObjectGroup sog)
+		{
+			m_log.Debug("[AAR]: OnObjectAddedToScene called");
+		}
+
+		private void OnObjectBeingRemovedFromScene(SceneObjectGroup sog)
+		{
+			m_log.Debug("[AAR]: OnObjectBeingRemovedFromScene called");
+		}
+
+		private void OnSceneObjectPartUpdated(SceneObjectPart sop, bool flag)
+		{
+			m_log.Debug("[AAR]: OnSceneObjectPartUpdated called");
+		}
+
+		#endregion
+
+		private void OnFrame(Scene s)
+		{
+			aar.tick();
+		}
+
+		private void OnPluginConsole(string[] args)
+		{
+			if (args[0] == "aar")
+			{
+				string[] tmpArgs = new string[args.Length - 2];
+				int i;
+				for (i = 2; i < args.Length; i++)
+					tmpArgs[i - 2] = args[i];
+
+				m_commander.ProcessConsoleCommand(args[1], tmpArgs);
+			}
+		}
+
+		private void OnAddActor(ScenePresence presence)
+		{
+			this.aar.addActor(presence);
+		}
+
+		private void OnRemoveActor(OpenMetaverse.UUID uuid)
+		{
+			this.aar.removeActor(uuid);
+		}
+		private void OnRemoveActor(ScenePresence presence)
+		{
+			OnRemoveActor(presence.UUID);
+		}
+
+		private void OnAvatarAppearanceChange(ScenePresence presence)
+		{
+			aar.actorAppearanceChanged(presence.UUID,presence.Appearance.Pack());
+		}
+
+		private void  OnScenePresenceUpdated(ScenePresence presence)
+		{
+			this.aar.actorPresenceChanged(presence);
+		}
+
 
 		#region Console
 
@@ -208,6 +263,16 @@ OnAttach
 			this.aar.startPlaying();
 		}
 
+		private void persistRegion(Object[] args)
+		{
+
+		}
+
+		private void resetRegion(Object[] ArgvConfigSource)
+		{
+
+		}
+
 		private void initCommander(){
 			Command statusCmd = new Command("status", CommandIntentions.COMMAND_NON_HAZARDOUS, statusAction,
 			                              "print aar module status");
@@ -229,6 +294,22 @@ OnAttach
 			m_log.Debug("[AAR]: commander initialized and registered");
 		}
 		#endregion
+	}
+
+	/*
+	 * This class is an interface to the AAR replay code, which affects the scene in question during playback
+	 */
+	public class Replay
+	{
+		private Dictionary<UUID,ScenePresence> stooges = new Dictionary<UUID, ScenePresence>();
+		public AARNPCModule npc;
+		private Scene m_scene;
+
+		public Replay(Scene scene)
+		{
+			npc = new AARNPCModule();
+			m_scene = scene;
+		}
 
 		#region Dispatch
 		/*create a box
@@ -319,8 +400,8 @@ OnAttach
 		#endregion
 	}
 
-	/* Extend NPC module and force enabled, so we dont rely on the NPC opensim ini config to perform */
-	class AARNPCModule : NPCModule
+	/* Extend NPC module to force enabled, so we dont rely on the NPC opensim ini config to perform */
+	public class AARNPCModule : NPCModule
 	{
 		new public bool Enabled { get; private set; }
 		public AARNPCModule() : base()

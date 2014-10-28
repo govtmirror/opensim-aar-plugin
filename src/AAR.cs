@@ -15,19 +15,10 @@ namespace MOSES.AAR
 		playback,
 		recording,
 		initiailizing,
+		uninitialized,
 		error
 	}
 	public delegate void Logger (string s);
-
-	public interface IDispatch
-	{
-		void createActor(UUID uuid, string firstName, string lastName);
-		void moveActor(UUID uuid, Vector3 position, Quaternion rotation, Vector3 velocity, bool isFlying, uint controlFlags);
-		void animateActor(UUID uuid, OpenSim.Framework.Animation[] animations);
-		void changeAppearance(UUID uuid, OSDMap appearance);
-		void deleteActor(UUID uuid);
-		void deleteAllActors();
-	}
 
 	public class AAR
 	{
@@ -36,11 +27,9 @@ namespace MOSES.AAR
 		//logging delegate
 		private Logger log;
 		//callbacks to affec tthe scene
-		private IDispatch dispatch;
+		private Replay dispatch;
 		//tracking avatars in world
-		private Dictionary<OpenMetaverse.UUID, Actor> avatars = new Dictionary<OpenMetaverse.UUID, Actor>();
-		//tracking AAR created avatars
-		private Dictionary<string, Actor> stooges = new Dictionary<string, Actor>();
+		private Dictionary<OpenMetaverse.UUID, AARActor> avatars = new Dictionary<OpenMetaverse.UUID, AARActor>();
 		//queue of scene events
 		private Queue<AAREvent> recordedActions = new Queue<AAREvent>();
 		//queue of processed scene events
@@ -48,11 +37,11 @@ namespace MOSES.AAR
 		private Stopwatch sw = new Stopwatch();
 		private long elapsedTime = 0;
 
-		public AAR(Logger log, IDispatch dispatch)
+		public AAR(Logger log, Replay dispatch)
 		{
 			this.dispatch = dispatch;
 			this.log = log;
-			this.state = AARState.stopped;
+			this.state = AARState.uninitialized;
 		}
 
 		public void tick()
@@ -77,7 +66,7 @@ namespace MOSES.AAR
 			elapsedTime = 0;
 			recordedActions.Clear();
 			recordedActions.Enqueue(new EventStart(elapsedTime));
-			foreach(Actor a in avatars.Values)
+			foreach(AARActor a in avatars.Values)
 			{
 				recordedActions.Enqueue(new ActorAddedEvent(a.firstName, a.lastName, a.uuid, elapsedTime));
 				recordedActions.Enqueue(new ActorAppearanceEvent(a.uuid, a.appearance, elapsedTime));
@@ -136,7 +125,7 @@ namespace MOSES.AAR
 			}
 			else
 			{
-				avatars[client.UUID] = new Actor(client);
+				avatars[client.UUID] = new AARActor(client);
 				log(string.Format("New Presence: {0} , tracking {1} Actors", this.avatars[client.UUID].firstName, this.avatars.Count));
 				if(this.state == AARState.recording)
 				{
@@ -256,67 +245,10 @@ namespace MOSES.AAR
 			{
 				state = AARState.stopped;
 				dispatch.deleteAllActors();
-				stooges.Clear();
 				Queue<AAREvent> tmp = processedActions;
 				processedActions = recordedActions;
 				recordedActions = tmp;
 			}
-		}
-	}
-	
-	class Actor
-	{
-		public UUID uuid { get; private set; }
-		public string firstName { get; private set; }
-		public string lastName {get; set; }
-		public string fullname {get; set; }
-		public uint controlFlags { get; set;}
-		public OSDMap appearance { get; set; }
-		public Vector3 position;
-		public Quaternion rotation;
-		public Vector3 velocity;
-		public Vector3 angularVelocity;
-		public bool isFlying;
-		public OpenSim.Framework.Animation[] animations;
-
-		public Actor(ScenePresence presence)
-		{
-			this.uuid = presence.UUID;
-			this.firstName = presence.Firstname;
-			this.lastName = presence.Lastname;
-			this.controlFlags = presence.AgentControlFlags;
-			this.appearance = presence.Appearance.Pack();
-			this.fullname = string.Format("{0} {1}", this.firstName, this.lastName);
-			this.position = presence.AbsolutePosition;
-			this.rotation = presence.Rotation;
-			this.isFlying = presence.Flying;
-			this.velocity = presence.Velocity;
-			this.animations = presence.Animator.Animations.ToArray();
-			this.angularVelocity = presence.AngularVelocity;
-		}
-
-		public bool movementChanged(ScenePresence client)
-		{
-			if( client.AgentControlFlags != controlFlags ||
-			   client.AbsolutePosition != position ||
-			   client.Flying != isFlying ||
-			   client.Velocity != velocity ||
-			   client.Rotation != rotation ||
-			   client.AngularVelocity != angularVelocity)
-			{
-				return true;
-			}
-			return false;
-		}
-
-		public void updateMovement(ScenePresence presence)
-		{
-			controlFlags = presence.AgentControlFlags;
-			position = presence.AbsolutePosition;
-			isFlying = presence.Flying;
-			velocity = presence.Velocity;
-			rotation = presence.Rotation;
-			angularVelocity = presence.AngularVelocity;
 		}
 	}
 }
