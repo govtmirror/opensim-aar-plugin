@@ -50,9 +50,11 @@ namespace MOSES.AAR
 	class ObjectActor : AARActor
 	{
 		public string name;
+		public PrimitiveBaseShape shape;
 
 		public ObjectActor(SceneObjectPart sog) : base(sog.UUID,sog.AbsolutePosition,sog.GetWorldRotation(),sog.Velocity,sog.AngularVelocity)
 		{
+			shape = sog.Shape;
 			name = sog.Name;
 		}
 	}

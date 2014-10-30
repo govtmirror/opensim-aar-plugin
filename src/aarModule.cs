@@ -37,7 +37,7 @@ namespace MOSES.AAR
 
 		public AARModule()
 		{
-			this.aar = new AAR(delegate(string s){m_log.DebugFormat("[AAR]: {0}", s);}, dispatch);
+			this.aar = new AAR(delegate(string s){m_log.DebugFormat("[AAR]: {0}", s);});
 		}
 
 		public void Initialise(IConfigSource source)
@@ -81,6 +81,7 @@ namespace MOSES.AAR
 			m_log.DebugFormat("[AAR]: Region {0} Added", scene.RegionInfo.RegionName);
 			dispatch = new Replay(scene);
 			dispatch.npc.AddRegion(scene);
+			aar.setDispatch(dispatch);
 		}
 
 		/*
@@ -298,6 +299,7 @@ OnAttach
 	public class Replay
 	{
 		private Dictionary<UUID,ScenePresence> stooges = new Dictionary<UUID, ScenePresence>();
+		private Dictionary<UUID,SceneObjectPart> sticks = new Dictionary<UUID, SceneObjectPart>();
 		public AARNPCModule npc;
 		private Scene m_scene;
 
@@ -307,32 +309,7 @@ OnAttach
 			m_scene = scene;
 		}
 
-		#region Dispatch
-		/*create a box
-			string rawSogId = string.Format("00000000-0000-0000-0000-{0:X12}", 0x10);
-			SceneObjectGroup sog 
-				= new SceneObjectGroup(
-					new SceneObjectPart(
-					UUID.Zero, PrimitiveBaseShape.Default, Vector3.Zero, Quaternion.Identity, Vector3.Zero) 
-					{ Name = name, UUID = new UUID(rawSogId), Scale = new Vector3(1, 1, 1) });
-			if(!m_scene.AddNewSceneObject(sog, false))
-			{
-				m_log.Debug("[AAR]: Error adding new object to scene, playback halted");
-				aar.stopPlaying();
-			}
-			return sog.UUID;
-		*/
-
-		/* move box
-			SceneObjectGroup sog = m_scene.GetGroupByPrim(uuid);
-			sog.AbsolutePosition = position;
-			sog.ScheduleGroupForTerseUpdate();
-		*/
-
-		/* remove box ???
-			SceneObjectGroup sog = m_scene.GetGroupByPrim(uuid);
-			m_scene.RemoveGroupTarget(sog);
-		*/
+		#region AvatarDispatch
 
 		public void createActor(UUID originalUuid, string firstName, string lastName)
 		{
@@ -391,6 +368,42 @@ OnAttach
 				npc.DeleteNPC(sp.UUID, m_scene);
 			}
 			stooges.Clear();
+		}
+
+		#endregion
+
+		#region ObjectDispatch
+
+		public void createObject(UUID uuid, String name, PrimitiveBaseShape shape)
+		{
+			SceneObjectPart sop = 
+				new SceneObjectPart(
+					uuid, shape, Vector3.Zero, Quaternion.Identity, Vector3.Zero);
+				
+			SceneObjectGroup sog = new SceneObjectGroup(sop);
+				
+			m_scene.AddNewSceneObject(sog, false);
+			sticks[uuid] = sop;
+		}
+
+		public void moveObject(UUID uuid, Vector3 position, Quaternion rotation, Vector3 velocity, Vector3 angularVelocity)
+		{
+			sticks[uuid].MoveToTarget(position,0);
+			sticks[uuid].UpdateRotation(rotation);
+			sticks[uuid].Velocity = velocity;
+			sticks[uuid].AngularVelocity = angularVelocity;
+			sticks[uuid].ParentGroup.ScheduleGroupForTerseUpdate();
+		}
+
+		public void deleteObject(UUID uuid)
+		{
+			m_scene.RemoveGroupTarget(sticks[uuid].ParentGroup);
+			sticks.Remove(uuid);
+		}
+
+		public void deleteAllObjects()
+		{
+
 		}
 
 		#endregion

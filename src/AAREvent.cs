@@ -41,14 +41,62 @@ namespace MOSES.AAR
 		}
 	}
 
-	class ObjectMovedEvent : AAREvent
+	abstract class ObjectEvent : AAREvent
 	{
+		public UUID uuid {get; set;}
 
-		public ObjectMovedEvent(long time) : base(time){}
+		public ObjectEvent(UUID uuid, long time) : base(time)
+		{
+			this.uuid = uuid;
+		}
+	}
+
+	class ObjectAddedEvent : ObjectEvent
+	{
+		public string name;
+		public PrimitiveBaseShape shape;
+
+		public ObjectAddedEvent(UUID uuid, String name, PrimitiveBaseShape shape, long time) : base(uuid, time)
+		{
+			this.name = name;
+			this.shape = shape;
+		}
 
 		override public void process(Replay dispatch, Logger log)
 		{
-			log("AAR Event Playback Completed");
+			dispatch.createObject(this.uuid,this.name,this.shape);
+		}
+	}
+
+	class ObjectRemovedEvent : ObjectEvent
+	{
+
+		public ObjectRemovedEvent(UUID uuid, long time) : base(uuid, time){}
+
+		override public void process(Replay dispatch, Logger log)
+		{
+			dispatch.deleteObject(this.uuid);
+		}
+	}
+
+	class ObjectMovedEvent : ObjectEvent
+	{
+		Vector3 position{get; set;}
+		Quaternion rotation{get; set;}
+		Vector3 velocity{get; set;}
+		Vector3 angularVelocity{get; set;}
+
+		public ObjectMovedEvent(UUID uuid, Vector3 position, Quaternion rotation, Vector3 velocity, Vector3 angularVelocity, long time) : base(uuid, time)
+		{
+			this.velocity = velocity;
+			this.rotation = rotation;
+			this.position = position;
+			this.angularVelocity = angularVelocity;
+		}
+
+		override public void process(Replay dispatch, Logger log)
+		{
+			dispatch.moveObject(this.uuid,this.position,this.rotation,this.velocity,this.angularVelocity);
 		}
 	}
 

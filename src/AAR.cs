@@ -38,11 +38,15 @@ namespace MOSES.AAR
 		private Stopwatch sw = new Stopwatch();
 		private long elapsedTime = 0;
 
-		public AAR(Logger log, Replay dispatch)
+		public AAR(Logger log)
+		{
+			this.log = log;
+			this.state = AARState.stopped;
+		}
+
+		public void setDispatch(Replay dispatch)
 		{
 			this.dispatch = dispatch;
-			this.log = log;
-			this.state = AARState.uninitialized;
 		}
 
 		public void tick()
@@ -66,7 +70,6 @@ namespace MOSES.AAR
 			sw.Start();
 			elapsedTime = 0;
 			recordedActions.Clear();
-			recordedActions.Enqueue(new EventStart(elapsedTime));
 			foreach(AvatarActor a in avatars.Values)
 			{
 				recordedActions.Enqueue(new ActorAddedEvent(a.firstName, a.lastName, a.uuid, elapsedTime));
@@ -74,6 +77,8 @@ namespace MOSES.AAR
 				recordedActions.Enqueue(new ActorMovedEvent(a, elapsedTime));
 				recordedActions.Enqueue(new ActorAnimationEvent(a.uuid, a.animations, elapsedTime));
 			}
+			//FIXME: skip adding initial objects for now, the region is populated
+			recordedActions.Enqueue(new EventStart(elapsedTime));
 			log("Record Start");
 			return true;
 		}
@@ -216,6 +221,11 @@ namespace MOSES.AAR
 			if(! objects.ContainsKey(sop.UUID))
 			{
 				objects.Add(sop.UUID, new ObjectActor(sop));
+				if(this.state == AARState.recording)
+				{
+					recordedActions.Enqueue(new ObjectAddedEvent(sop.UUID, sop.Name,sop.Shape,elapsedTime));
+					recordedActions.Enqueue(new ObjectMovedEvent(sop.UUID,sop.AbsolutePosition,sop.GetWorldRotation(),sop.Velocity,sop.AngularVelocity,elapsedTime));
+				}
 			}
 			return true;
 		}
@@ -226,6 +236,10 @@ namespace MOSES.AAR
 			if(objects.ContainsKey(sop.UUID))
 			{
 				objects.Remove(sop.UUID);
+				if(this.state == AARState.recording)
+				{
+					recordedActions.Enqueue(new ObjectRemovedEvent(sop.UUID,elapsedTime));
+				}
 			}
 			return true;
 		}
@@ -236,7 +250,10 @@ namespace MOSES.AAR
 			{
 				if(objects[sop.UUID].movementChanged(sop.AbsolutePosition,sop.GetWorldRotation(),sop.Velocity,sop.AngularVelocity)){
 					objects[sop.UUID].updateMovement(sop.AbsolutePosition,sop.GetWorldRotation(),sop.Velocity,sop.AngularVelocity);
-					log("object moved");
+					if(this.state == AARState.recording)
+					{
+						recordedActions.Enqueue(new ObjectMovedEvent(sop.UUID,sop.AbsolutePosition,sop.GetWorldRotation(),sop.Velocity,sop.AngularVelocity,elapsedTime));
+					}
 				}
 			}
 			return false;
