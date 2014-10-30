@@ -170,17 +170,23 @@ OnAttach
 
 		private void OnObjectAddedToScene(SceneObjectGroup sog)
 		{
-			m_log.Debug("[AAR]: OnObjectAddedToScene called");
+			foreach(SceneObjectPart part in sog.Parts)
+			{
+				aar.addObject(part);
+			}
 		}
 
 		private void OnObjectBeingRemovedFromScene(SceneObjectGroup sog)
 		{
-			m_log.Debug("[AAR]: OnObjectBeingRemovedFromScene called");
+			foreach(SceneObjectPart part in sog.Parts)
+			{
+				aar.removeObject(part);
+			}
 		}
 
 		private void OnSceneObjectPartUpdated(SceneObjectPart sop, bool flag)
 		{
-			m_log.Debug("[AAR]: OnSceneObjectPartUpdated called");
+			aar.updateObject(sop, flag);
 		}
 
 		#endregion
@@ -205,12 +211,12 @@ OnAttach
 
 		private void OnAddActor(ScenePresence presence)
 		{
-			this.aar.addActor(presence);
+			this.aar.addAvatar(presence);
 		}
 
 		private void OnRemoveActor(OpenMetaverse.UUID uuid)
 		{
-			this.aar.removeActor(uuid);
+			this.aar.removeAvatar(uuid);
 		}
 		private void OnRemoveActor(ScenePresence presence)
 		{
@@ -219,12 +225,12 @@ OnAttach
 
 		private void OnAvatarAppearanceChange(ScenePresence presence)
 		{
-			aar.actorAppearanceChanged(presence.UUID,presence.Appearance.Pack());
+			aar.avatarAppearanceChanged(presence.UUID,presence.Appearance.Pack());
 		}
 
 		private void  OnScenePresenceUpdated(ScenePresence presence)
 		{
-			this.aar.actorPresenceChanged(presence);
+			this.aar.avatarPresenceChanged(presence);
 		}
 
 
@@ -261,16 +267,6 @@ OnAttach
 		private void playAction(Object[] args)
 		{
 			this.aar.startPlaying();
-		}
-
-		private void persistRegion(Object[] args)
-		{
-
-		}
-
-		private void resetRegion(Object[] ArgvConfigSource)
-		{
-
 		}
 
 		private void initCommander(){

@@ -29,7 +29,8 @@ namespace MOSES.AAR
 		//callbacks to affec tthe scene
 		private Replay dispatch;
 		//tracking avatars in world
-		private Dictionary<OpenMetaverse.UUID, AARActor> avatars = new Dictionary<OpenMetaverse.UUID, AARActor>();
+		private Dictionary<OpenMetaverse.UUID, AvatarActor> avatars = new Dictionary<OpenMetaverse.UUID, AvatarActor>();
+		private Dictionary<OpenMetaverse.UUID, ObjectActor> objects = new Dictionary<UUID, ObjectActor>();
 		//queue of scene events
 		private Queue<AAREvent> recordedActions = new Queue<AAREvent>();
 		//queue of processed scene events
@@ -66,7 +67,7 @@ namespace MOSES.AAR
 			elapsedTime = 0;
 			recordedActions.Clear();
 			recordedActions.Enqueue(new EventStart(elapsedTime));
-			foreach(AARActor a in avatars.Values)
+			foreach(AvatarActor a in avatars.Values)
 			{
 				recordedActions.Enqueue(new ActorAddedEvent(a.firstName, a.lastName, a.uuid, elapsedTime));
 				recordedActions.Enqueue(new ActorAppearanceEvent(a.uuid, a.appearance, elapsedTime));
@@ -116,7 +117,9 @@ namespace MOSES.AAR
 			return true;
 		}
 
-		public bool addActor(ScenePresence client)
+		#region AvatarInterface
+
+		public bool addAvatar(ScenePresence client)
 		{
 			if(this.avatars.ContainsKey(client.UUID))
 			{
@@ -125,7 +128,7 @@ namespace MOSES.AAR
 			}
 			else
 			{
-				avatars[client.UUID] = new AARActor(client);
+				avatars[client.UUID] = new AvatarActor(client);
 				log(string.Format("New Presence: {0} , tracking {1} Actors", this.avatars[client.UUID].firstName, this.avatars.Count));
 				if(this.state == AARState.recording)
 				{
@@ -138,7 +141,7 @@ namespace MOSES.AAR
 			}
 		}
 
-		public bool actorAppearanceChanged(UUID uuid, OSDMap appearance)
+		public bool avatarAppearanceChanged(UUID uuid, OSDMap appearance)
 		{
 			if(this.avatars.ContainsKey(uuid))
 			{
@@ -151,7 +154,7 @@ namespace MOSES.AAR
 			return false;
 		}
 
-		public bool actorPresenceChanged(ScenePresence client)
+		public bool avatarPresenceChanged(ScenePresence client)
 		{
 			if(this.avatars.ContainsKey(client.UUID))
 			{
@@ -189,7 +192,7 @@ namespace MOSES.AAR
 			return false;
 		}
 
-		public bool removeActor(OpenMetaverse.UUID uuid)
+		public bool removeAvatar(OpenMetaverse.UUID uuid)
 		{
 			if(this.avatars.ContainsKey(uuid))
 			{
@@ -203,15 +206,43 @@ namespace MOSES.AAR
 			return false;
 		}
 
-		public bool addObject()
+		#endregion
+
+		#region ObjectInterface
+
+		public bool addObject(SceneObjectPart sop)
 		{
+			//objects appear to be instantiated twice...
+			if(! objects.ContainsKey(sop.UUID))
+			{
+				objects.Add(sop.UUID, new ObjectActor(sop));
+			}
+			return true;
+		}
+
+		public bool removeObject(SceneObjectPart sop)
+		{
+			//test first, objects are removed more than once
+			if(objects.ContainsKey(sop.UUID))
+			{
+				objects.Remove(sop.UUID);
+			}
+			return true;
+		}
+
+		public bool updateObject(SceneObjectPart sop, bool flag)
+		{
+			if(objects.ContainsKey(sop.UUID))
+			{
+				if(objects[sop.UUID].movementChanged(sop.AbsolutePosition,sop.GetWorldRotation(),sop.Velocity,sop.AngularVelocity)){
+					objects[sop.UUID].updateMovement(sop.AbsolutePosition,sop.GetWorldRotation(),sop.Velocity,sop.AngularVelocity);
+					log("object moved");
+				}
+			}
 			return false;
 		}
 
-		public bool removeObject()
-		{
-			return false;
-		}
+		#endregion
 
 		public void printActionList()
 		{
@@ -229,7 +260,7 @@ namespace MOSES.AAR
 				log("STATE unknown");
 				break;
 			}
-			log(string.Format("Tracked {0} actions", recordedActions.Count));
+			log(string.Format("Tracked {0} actions, {1} avatars and {2} objects", recordedActions.Count, avatars.Count, objects.Count));
 		}
 
 		private void processPlayback()

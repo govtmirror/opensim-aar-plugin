@@ -41,6 +41,19 @@ namespace MOSES.AAR
 		}
 	}
 
+	class ObjectMovedEvent : AAREvent
+	{
+
+		public ObjectMovedEvent(long time) : base(time){}
+
+		override public void process(Replay dispatch, Logger log)
+		{
+			log("AAR Event Playback Completed");
+		}
+	}
+
+	#region ActorEvents
+
 	abstract class ActorEvent : AAREvent
 	{
 		public UUID uuid;
@@ -136,7 +149,7 @@ namespace MOSES.AAR
 			this.AngularVelocity = presence.AngularVelocity;
 		}
 
-		public ActorMovedEvent(AARActor a, long time) :
+		public ActorMovedEvent(AvatarActor a, long time) :
 			base(a.uuid, time)
 		{
 			this.controlFlags = a.controlFlags;
@@ -153,4 +166,6 @@ namespace MOSES.AAR
 			dispatch.moveActor(this.uuid, this.position, this.rotation, this.velocity, this.isFlying, this.controlFlags);
 		}
 	}
+
+	#endregion
 }

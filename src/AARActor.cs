@@ -11,20 +11,63 @@ namespace MOSES.AAR
 {
 	class AARActor
 	{
-		public UUID uuid { get; private set; }
+		public UUID uuid {get; protected set; }
+		public Vector3 position;
+		public Quaternion rotation;
+		public Vector3 velocity;
+		public Vector3 angularVelocity;
+
+		public AARActor(UUID uuid, Vector3 position, Quaternion rotation, Vector3 velocity, Vector3 angularVelocity)
+		{
+			this.uuid = uuid;
+			this.position = position;
+			this.rotation = rotation;
+			this.velocity = velocity;
+			this.angularVelocity = angularVelocity;
+		}
+
+		public bool movementChanged(Vector3 position, Quaternion rotation, Vector3 velocity, Vector3 angularVelocity)
+		{
+			if(this.position != position ||
+			   this.rotation != rotation ||
+			   this.velocity != velocity ||
+			   this.angularVelocity != angularVelocity)
+			{
+				return true;
+			}
+			return false;
+		}
+
+		public void updateMovement(Vector3 position, Quaternion rotation, Vector3 velocity, Vector3 angularVelocity)
+		{
+			this.position = position;
+			this.rotation = rotation;
+			this.velocity = velocity;
+			this.angularVelocity = angularVelocity;
+		}
+	}
+
+	class ObjectActor : AARActor
+	{
+		public string name;
+
+		public ObjectActor(SceneObjectPart sog) : base(sog.UUID,sog.AbsolutePosition,sog.GetWorldRotation(),sog.Velocity,sog.AngularVelocity)
+		{
+			name = sog.Name;
+		}
+	}
+
+	class AvatarActor : AARActor
+	{
 		public string firstName { get; private set; }
 		public string lastName {get; set; }
 		public string fullname {get; set; }
 		public uint controlFlags { get; set;}
 		public OSDMap appearance { get; set; }
-		public Vector3 position;
-		public Quaternion rotation;
-		public Vector3 velocity;
-		public Vector3 angularVelocity;
 		public bool isFlying;
 		public OpenSim.Framework.Animation[] animations;
 
-		public AARActor(ScenePresence presence)
+		public AvatarActor(ScenePresence presence) : base(presence.UUID,presence.AbsolutePosition,presence.Rotation,presence.Velocity,presence.AngularVelocity)
 		{
 			this.uuid = presence.UUID;
 			this.firstName = presence.Firstname;
@@ -32,22 +75,15 @@ namespace MOSES.AAR
 			this.controlFlags = presence.AgentControlFlags;
 			this.appearance = presence.Appearance.Pack();
 			this.fullname = string.Format("{0} {1}", this.firstName, this.lastName);
-			this.position = presence.AbsolutePosition;
-			this.rotation = presence.Rotation;
 			this.isFlying = presence.Flying;
-			this.velocity = presence.Velocity;
 			this.animations = presence.Animator.Animations.ToArray();
-			this.angularVelocity = presence.AngularVelocity;
 		}
 
 		public bool movementChanged(ScenePresence client)
 		{
-			if( client.AgentControlFlags != controlFlags ||
-			   client.AbsolutePosition != position ||
-			   client.Flying != isFlying ||
-			   client.Velocity != velocity ||
-			   client.Rotation != rotation ||
-			   client.AngularVelocity != angularVelocity)
+			if(this.movementChanged(client.AbsolutePosition,client.Rotation,client.Velocity,client.AngularVelocity) ||
+				client.AgentControlFlags != controlFlags ||
+				client.Flying != isFlying)
 			{
 				return true;
 			}
@@ -56,12 +92,9 @@ namespace MOSES.AAR
 
 		public void updateMovement(ScenePresence presence)
 		{
+			this.updateMovement(presence.AbsolutePosition,presence.Rotation,presence.Velocity,presence.AngularVelocity);
 			controlFlags = presence.AgentControlFlags;
-			position = presence.AbsolutePosition;
 			isFlying = presence.Flying;
-			velocity = presence.Velocity;
-			rotation = presence.Rotation;
-			angularVelocity = presence.AngularVelocity;
 		}
 	}
 }
