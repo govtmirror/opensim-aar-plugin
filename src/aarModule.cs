@@ -309,6 +309,17 @@ OnAttach
 			m_scene = scene;
 		}
 
+		public void haltScripts()
+		{
+			m_scene.ScriptsEnabled = false;
+		}
+
+		public void restoreScripts()
+		{
+			m_scene.ScriptsEnabled = true;
+			m_scene.StartScripts();
+		}
+
 		#region AvatarDispatch
 
 		public void createActor(UUID originalUuid, string firstName, string lastName)
@@ -388,6 +399,10 @@ OnAttach
 
 		public void moveObject(UUID uuid, Vector3 position, Quaternion rotation, Vector3 velocity, Vector3 angularVelocity)
 		{
+			if(!sticks.ContainsKey(uuid))
+			{
+				return;
+			}
 			sticks[uuid].MoveToTarget(position,0);
 			sticks[uuid].UpdateRotation(rotation);
 			sticks[uuid].Velocity = velocity;

@@ -103,6 +103,7 @@ namespace MOSES.AAR
 				log("Error, AAR cannot playback, it is not stopped");
 				return false;
 			}
+			dispatch.haltScripts();
 			this.state = AARState.playback;
 			sw.Reset();
 			sw.Start();
@@ -296,6 +297,7 @@ namespace MOSES.AAR
 				Queue<AAREvent> tmp = processedActions;
 				processedActions = recordedActions;
 				recordedActions = tmp;
+				dispatch.restoreScripts();
 			}
 		}
 	}
