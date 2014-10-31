@@ -299,7 +299,7 @@ OnAttach
 	public class Replay
 	{
 		private Dictionary<UUID,ScenePresence> stooges = new Dictionary<UUID, ScenePresence>();
-		private Dictionary<UUID,SceneObjectPart> sticks = new Dictionary<UUID, SceneObjectPart>();
+		private Dictionary<UUID,SceneObjectGroup> sticks = new Dictionary<UUID, SceneObjectGroup>();
 		public AARNPCModule npc;
 		private Scene m_scene;
 
@@ -387,14 +387,14 @@ OnAttach
 
 		public void createObject(UUID uuid, String name, PrimitiveBaseShape shape)
 		{
-			SceneObjectPart sop = 
-				new SceneObjectPart(
-					uuid, shape, Vector3.Zero, Quaternion.Identity, Vector3.Zero);
+			//SceneObjectPart sop = 
+			//	new SceneObjectPart(
+			//		uuid, shape, Vector3.Zero, Quaternion.Identity, Vector3.Zero);
 				
-			SceneObjectGroup sog = new SceneObjectGroup(sop);
+			SceneObjectGroup sog = new SceneObjectGroup(UUID.Zero,Vector3.Zero,shape);
 				
 			m_scene.AddNewSceneObject(sog, false);
-			sticks[uuid] = sop;
+			sticks[uuid] = sog;
 		}
 
 		public void moveObject(UUID uuid, Vector3 position, Quaternion rotation, Vector3 velocity, Vector3 angularVelocity)
@@ -403,22 +403,27 @@ OnAttach
 			{
 				return;
 			}
-			sticks[uuid].MoveToTarget(position,0);
-			sticks[uuid].UpdateRotation(rotation);
+			sticks[uuid].AbsolutePosition = position;//   MoveToTarget(position,0);
+			sticks[uuid].UpdateGroupRotationR(rotation);//UpdateRotation(rotation);
 			sticks[uuid].Velocity = velocity;
-			sticks[uuid].AngularVelocity = angularVelocity;
-			sticks[uuid].ParentGroup.ScheduleGroupForTerseUpdate();
+			//sticks[uuid].AngularVelocity = angularVelocity;
+			sticks[uuid].ScheduleGroupForTerseUpdate();
 		}
 
 		public void deleteObject(UUID uuid)
 		{
-			m_scene.RemoveGroupTarget(sticks[uuid].ParentGroup);
+			m_scene.DeleteSceneObject(sticks[uuid],false);
 			sticks.Remove(uuid);
+
 		}
 
 		public void deleteAllObjects()
 		{
-
+			foreach(SceneObjectGroup stick in sticks.Values)
+			{
+				m_scene.DeleteSceneObject(stick,false);
+			}
+			sticks.Clear();
 		}
 
 		#endregion

@@ -294,6 +294,7 @@ namespace MOSES.AAR
 			{
 				state = AARState.stopped;
 				dispatch.deleteAllActors();
+				dispatch.deleteAllObjects();
 				Queue<AAREvent> tmp = processedActions;
 				processedActions = recordedActions;
 				recordedActions = tmp;
