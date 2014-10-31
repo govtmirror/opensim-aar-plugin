@@ -302,22 +302,45 @@ OnAttach
 		private Dictionary<UUID,SceneObjectGroup> sticks = new Dictionary<UUID, SceneObjectGroup>();
 		public AARNPCModule npc;
 		private Scene m_scene;
+		IDialogModule dialog;
 
 		public Replay(Scene scene)
 		{
 			npc = new AARNPCModule();
 			m_scene = scene;
+			dialog =  m_scene.RequestModuleInterface<IDialogModule>();
+		}
+
+		public void onPlaybackStarted()
+		{
+			if(dialog == null)
+				dialog =  m_scene.RequestModuleInterface<IDialogModule>();
+			dialog.SendGeneralAlert("AAR Module: Playback Starting");
+		}
+
+		public void onPlaybackComplete()
+		{
+			if(dialog == null)
+				dialog =  m_scene.RequestModuleInterface<IDialogModule>();
+			dialog.SendGeneralAlert("AAR Module: Playback Complete");
 		}
 
 		public void haltScripts()
 		{
+			if(dialog == null)
+				dialog =  m_scene.RequestModuleInterface<IDialogModule>();
+			dialog.SendGeneralAlert("AAR Module: Halting scripts in preparation for Playback");
 			m_scene.ScriptsEnabled = false;
 		}
 
 		public void restoreScripts()
 		{
+			if(dialog == null)
+				dialog =  m_scene.RequestModuleInterface<IDialogModule>();
+			dialog.SendGeneralAlert("AAR Module: Restarting scripts after playback complete");
 			m_scene.ScriptsEnabled = true;
-			m_scene.StartScripts();
+			//m_scene.StartScripts();
+			dialog.SendGeneralAlert("AAR Module: Region resuming normal functionality");
 		}
 
 		#region AvatarDispatch
@@ -401,6 +424,16 @@ OnAttach
 		{
 			if(!sticks.ContainsKey(uuid))
 			{
+				//we may be attempting to move an object that we did not create
+				SceneObjectGroup sog;
+				m_scene.TryGetSceneObjectGroup(uuid, out sog);
+				if(sog != null)
+				{
+					sog.AbsolutePosition = position;
+					sog.UpdateGroupRotationR(rotation);
+					sog.Velocity = velocity;
+					sog.ScheduleGroupForTerseUpdate();
+				}
 				return;
 			}
 			sticks[uuid].AbsolutePosition = position;//   MoveToTarget(position,0);
