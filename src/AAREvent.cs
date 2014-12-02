@@ -18,14 +18,14 @@ namespace MOSES.AAR
 			this.time = time;
 		}
 
-		abstract public void process(Replay dispatch, Logger log);
+		abstract public void process(Replay dispatch, AARLog log);
 	}
 
 	class EventStart : AAREvent
 	{
 		public EventStart(long time) : base(time){}
 
-		override public void process(Replay dispatch, Logger log)
+		override public void process(Replay dispatch, AARLog log)
 		{
 			log("AAR Event Playback Start");
 		}
@@ -35,7 +35,7 @@ namespace MOSES.AAR
 	{
 		public EventEnd(long time) : base(time){}
 
-		override public void process(Replay dispatch, Logger log)
+		override public void process(Replay dispatch, AARLog log)
 		{
 			log("AAR Event Playback Completed");
 		}
@@ -62,7 +62,7 @@ namespace MOSES.AAR
 			this.shape = shape;
 		}
 
-		override public void process(Replay dispatch, Logger log)
+		override public void process(Replay dispatch, AARLog log)
 		{
 			dispatch.createObject(this.uuid,this.name,this.shape);
 		}
@@ -73,7 +73,7 @@ namespace MOSES.AAR
 
 		public ObjectRemovedEvent(UUID uuid, long time) : base(uuid, time){}
 
-		override public void process(Replay dispatch, Logger log)
+		override public void process(Replay dispatch, AARLog log)
 		{
 			dispatch.deleteObject(this.uuid);
 		}
@@ -94,7 +94,7 @@ namespace MOSES.AAR
 			this.angularVelocity = angularVelocity;
 		}
 
-		override public void process(Replay dispatch, Logger log)
+		override public void process(Replay dispatch, AARLog log)
 		{
 			dispatch.moveObject(this.uuid,this.position,this.rotation,this.velocity,this.angularVelocity);
 		}
@@ -126,7 +126,7 @@ namespace MOSES.AAR
 			this.lastName = lastName;
 		}
 
-		override public void process(Replay dispatch, Logger log)
+		override public void process(Replay dispatch, AARLog log)
 		{
 			log(string.Format("Adding actor {0} as {1}", this.uuid, this.fullName));
 			dispatch.createActor(this.uuid,this.firstName,this.lastName);
@@ -138,7 +138,7 @@ namespace MOSES.AAR
 		public ActorRemovedEvent(UUID uuid, long time)
 			: base(uuid, time){}
 
-		override public void process(Replay dispatch, Logger log)
+		override public void process(Replay dispatch, AARLog log)
 		{
 			log(string.Format("Removing actor {0}", this.uuid));
 			dispatch.deleteActor(this.uuid);
@@ -155,7 +155,7 @@ namespace MOSES.AAR
 			this.appearance = appearance;
 		}
 
-		override public void process(Replay dispatch, Logger log)
+		override public void process(Replay dispatch, AARLog log)
 		{
 			dispatch.changeAppearance(this.uuid,this.appearance);
 		}
@@ -171,7 +171,7 @@ namespace MOSES.AAR
 			this.animations = animations;
 		}
 
-		override public void process(Replay dispatch, Logger log)
+		override public void process(Replay dispatch, AARLog log)
 		{
 			dispatch.animateActor(this.uuid,this.animations);
 		}
@@ -208,7 +208,7 @@ namespace MOSES.AAR
 			this.AngularVelocity = a.angularVelocity;
 		}
 
-		override public void process(Replay dispatch, Logger log)
+		override public void process(Replay dispatch, AARLog log)
 		{
 			log(string.Format("Moving actor {0} to {1}", this.uuid, this.position));
 			dispatch.moveActor(this.uuid, this.position, this.rotation, this.velocity, this.isFlying, this.controlFlags);
