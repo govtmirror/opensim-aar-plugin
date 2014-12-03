@@ -9,6 +9,7 @@ using OpenMetaverse.StructuredData;
 
 namespace MOSES.AAR
 {
+	[Serializable]
 	abstract class AAREvent
 	{
 		public long time;
@@ -21,6 +22,7 @@ namespace MOSES.AAR
 		abstract public void process(Replay dispatch, AARLog log);
 	}
 
+	[Serializable]
 	class EventStart : AAREvent
 	{
 		public EventStart(long time) : base(time){}
@@ -31,6 +33,7 @@ namespace MOSES.AAR
 		}
 	}
 
+	[Serializable]
 	class EventEnd : AAREvent
 	{
 		public EventEnd(long time) : base(time){}
@@ -41,6 +44,7 @@ namespace MOSES.AAR
 		}
 	}
 
+	[Serializable]
 	abstract class ObjectEvent : AAREvent
 	{
 		public UUID uuid {get; set;}
@@ -51,6 +55,7 @@ namespace MOSES.AAR
 		}
 	}
 
+	[Serializable]
 	class ObjectAddedEvent : ObjectEvent
 	{
 		public string name;
@@ -68,6 +73,7 @@ namespace MOSES.AAR
 		}
 	}
 
+	[Serializable]
 	class ObjectRemovedEvent : ObjectEvent
 	{
 
@@ -79,6 +85,7 @@ namespace MOSES.AAR
 		}
 	}
 
+	[Serializable]
 	class ObjectMovedEvent : ObjectEvent
 	{
 		Vector3 position{get; set;}
@@ -102,6 +109,7 @@ namespace MOSES.AAR
 
 	#region ActorEvents
 
+	[Serializable]
 	abstract class ActorEvent : AAREvent
 	{
 		public UUID uuid;
@@ -113,6 +121,7 @@ namespace MOSES.AAR
 		}
 	}
 
+	[Serializable]
 	class ActorAddedEvent : ActorEvent
 	{
 		public string firstName;
@@ -133,6 +142,7 @@ namespace MOSES.AAR
 		}
 	}
 
+	[Serializable]
 	class ActorRemovedEvent : ActorEvent
 	{
 		public ActorRemovedEvent(UUID uuid, long time)
@@ -145,22 +155,24 @@ namespace MOSES.AAR
 		}
 	}
 
+	[Serializable]
 	class ActorAppearanceEvent : ActorEvent
 	{
-		public OSDMap appearance;
+		public string notecard;
 
-		public ActorAppearanceEvent(UUID uuid, OSDMap appearance, long time)
+		public ActorAppearanceEvent(UUID uuid, string notecard, long time)
 			:base(uuid, time)
 		{
-			this.appearance = appearance;
+			this.notecard = notecard;
 		}
 
 		override public void process(Replay dispatch, AARLog log)
 		{
-			dispatch.changeAppearance(this.uuid,this.appearance);
+			dispatch.changeAppearance(this.uuid,this.notecard);
 		}
 	}
 
+	[Serializable]
 	class ActorAnimationEvent : ActorEvent
 	{
 		public OpenSim.Framework.Animation[] animations;
@@ -177,6 +189,7 @@ namespace MOSES.AAR
 		}
 	}
 
+	[Serializable]
 	class ActorMovedEvent : ActorEvent
 	{
 		public uint controlFlags;

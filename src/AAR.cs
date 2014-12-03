@@ -17,8 +17,9 @@ namespace MOSES.AAR
 		//logging delegate
 		private AARLog log;
 		//callbacks to affect the scene
-		private Replay dispatch;
-		//tracking avatars in world
+		private Recorder recorder;
+
+		public static string AARBOXNAME = "AARModule Storage Box";
 
 		//queue of processed scene events
 		//private Queue<AAREvent> processedActions = new Queue<AAREvent>();
@@ -28,26 +29,23 @@ namespace MOSES.AAR
 			this.log = log;
 
 			scene.AddCommand("Aar",module,"aar status","status","Print the status of the AAR module", statusAction);
-			scene.AddCommand("Aar",module,"aar stop","stop","halt recording or playback", stopAction);
-			scene.AddCommand("Aar",module,"aar play","play","play back recorded events", playAction);
+
+			recorder = new Recorder(log);
+			recorder.initialize(scene);
+			recorder.registerCommands(module,scene);
+		}
+
+		public void cleanup()
+		{
+			recorder.cleanup();
 		}
 
 		#region Console
 
 		private void statusAction(string module, string[] args)
 		{
-			//MainConsole.Instance.OutputFormat("aar test print using MainConsole Output format");
-			//aar.printActionList();
-		}
-
-		private void stopAction(string module, string[] args)
-		{
-
-		}
-
-		private void playAction(string module, string[] args)
-		{
-
+			log("AAR status command");
+			recorder.printStatus();
 		}
 		#endregion
 	}

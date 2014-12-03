@@ -7,6 +7,11 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using OpenSim.Region.Framework.Interfaces;
+using OpenSim.Region.ScriptEngine.XEngine;
+using OpenSim.Region.ScriptEngine.Shared.Api;
+using System.IO.Compression;
+using System.Runtime.Serialization.Formatters.Binary;
+
 
 namespace MOSES.AAR
 {
@@ -20,10 +25,20 @@ namespace MOSES.AAR
 		private Stopwatch sw = new Stopwatch();
 		private AARLog log;
 		private bool isRecording = false;
+		private bool hasRecording = false;
+		private UUID sessionId;
+
+		private SceneObjectGroup aarBox = null;
+		private XEngine xEngine = null;
 
 		public Recorder (AARLog log)
 		{
 			this.log = log;
+		}
+
+		public void printStatus()
+		{
+			log("Recorder class checking in");
 		}
 
 		public void initialize(Scene scene)
@@ -41,10 +56,57 @@ namespace MOSES.AAR
 			scene.EventManager.OnSceneObjectLoaded				+= onAddObject;
 			scene.EventManager.OnObjectBeingRemovedFromScene	+= onRemoveObject;
 			scene.EventManager.OnSceneObjectPartUpdated			+= onUpdateObject;
+
+			/* lookup xEngine */
+			IScriptModule scriptModule = null;
+			foreach (IScriptModule sm in scene.RequestModuleInterfaces<IScriptModule>())
+			{
+				if (sm.ScriptEngineName == scene.DefaultScriptEngine)
+					scriptModule = sm;
+				else if (scriptModule == null)
+					scriptModule = sm;
+			}
+			xEngine = (XEngine)scriptModule;
+
+			/* lookup aarBox */
+			foreach(EntityBase ent in scene.Entities.GetEntities())
+			{
+				if(ent.Name == AAR.AARBOXNAME)
+				{
+					log("Found aarBox");
+					aarBox = (SceneObjectGroup)ent;
+				}
+			}
+			if(aarBox == null)
+			{
+				aarBox = new SceneObjectGroup(UUID.Zero,Vector3.Zero,PrimitiveBaseShape.CreateBox());
+				aarBox.Name = AAR.AARBOXNAME;
+				scene.AddNewSceneObject(aarBox, false);
+				log("Created new aarBox");
+			}
+
 		}
 		public void registerCommands(IRegionModuleBase regionModule, Scene scene)
 		{
-			scene.AddCommand(regionModule,"aar record","start recording","really start recording",startRecording);
+			scene.AddCommand("Aar", regionModule,"aar record","record","Begin recording an event",startRecording);
+			scene.AddCommand("Aar", regionModule,"aar stop", "stop", "Stop recording an event",stopRecording);
+			scene.AddCommand("Aar", regionModule,"aar save", "save", "Persist a recorded event", saveSession);
+		}
+
+		public void cleanup()
+		{
+			//delete any appearance cards for a session that hasn't been saved.
+			foreach(AvatarActor a in avatars.Values)
+			{
+				foreach(string item in a.appearances)
+				{
+					TaskInventoryItem it = aarBox.RootPart.Inventory.GetInventoryItem(item);
+					aarBox.RootPart.Inventory.RemoveInventoryItem(it.ItemID);
+				}
+			}
+			isRecording = false;
+			hasRecording = false;
+			recordedActions.Clear();
 		}
 
 		/*
@@ -121,17 +183,27 @@ OnAttach
 				log("Error starting: AAR is already recording");
 				return;
 			}
+			if(hasRecording)
+			{
+				log("Overwriting recorded session");
+			}
 			isRecording = true;
+			hasRecording = true;
+			sessionId = UUID.Random();
 			sw.Restart();
 			recordedActions.Clear();
 			foreach(AvatarActor a in avatars.Values)
 			{
+				a.appearanceCount = 0;
+				a.appearances.Clear();
+				string appearanceName = persistAppearance(a.uuid,a.appearanceCount);
+				a.appearances.Add(appearanceName);
 				recordedActions.Enqueue(new ActorAddedEvent(a.firstName, a.lastName, a.uuid, sw.ElapsedMilliseconds));
-				recordedActions.Enqueue(new ActorAppearanceEvent(a.uuid, a.appearance, sw.ElapsedMilliseconds));
+				recordedActions.Enqueue(new ActorAppearanceEvent(a.uuid, appearanceName, sw.ElapsedMilliseconds));
 				recordedActions.Enqueue(new ActorMovedEvent(a, sw.ElapsedMilliseconds));
 				recordedActions.Enqueue(new ActorAnimationEvent(a.uuid, a.animations, sw.ElapsedMilliseconds));
 			}
-			//FIXME: skip adding initial objects for now, assume the region is populated
+			//FIXME: skip adding initial objects for now, assume the region is populated by oar file
 			recordedActions.Enqueue(new EventStart(sw.ElapsedMilliseconds));
 			log("Record Start");
 		}
@@ -146,6 +218,38 @@ OnAttach
 			isRecording = false;
 			sw.Stop();
 		}
+		public void saveSession(string module, string[] args)
+		{
+			if(isRecording)
+			{
+				log("Error saving session, module is still recording");
+				return;
+			}
+			if(!hasRecording)
+			{
+				log("Error saving session, there is no recorded session");
+				return;
+			}
+			//persist the session
+			string session = "";
+			using (var memoryStream = new System.IO.MemoryStream())
+			{
+				using (var gZipStream = new GZipStream(memoryStream, CompressionMode.Compress))
+				{
+					BinaryFormatter binaryFormatter = new BinaryFormatter();
+					binaryFormatter.Serialize(gZipStream, recordedActions);
+				}
+				session = Convert.ToBase64String(memoryStream.ToArray());
+			}
+
+			log(string.Format("{0} bytes", System.Text.ASCIIEncoding.ASCII.GetByteCount(session)));
+			foreach(AvatarActor a in avatars.Values)
+			{
+				a.appearances.Clear();
+				a.appearanceCount = 0;
+			}
+			hasRecording = false;
+		}
 		#endregion
 
 		#region AvatarInterface
@@ -159,27 +263,37 @@ OnAttach
 			else
 			{
 				avatars[client.UUID] = new AvatarActor(client);
-				log(string.Format("New Presence: {0} , tracking {1} Actors", this.avatars[client.UUID].firstName, this.avatars.Count));
-				recordedActions.Enqueue(new ActorAddedEvent(avatars[client.UUID].firstName, avatars[client.UUID].lastName, client.UUID, sw.ElapsedMilliseconds));
-				recordedActions.Enqueue(new ActorAppearanceEvent(client.UUID, avatars[client.UUID].appearance,sw.ElapsedMilliseconds));
-				recordedActions.Enqueue(new ActorMovedEvent(avatars[client.UUID], sw.ElapsedMilliseconds));
-				recordedActions.Enqueue(new ActorAnimationEvent(client.UUID, avatars[client.UUID].animations, sw.ElapsedMilliseconds));
+				avatars[client.UUID].appearanceCount = 0;
+				avatars[client.UUID].appearances.Clear();
+				if(isRecording)
+				{
+					string appearanceName = persistAppearance(client.UUID,avatars[client.UUID].appearanceCount);
+					avatars[client.UUID].appearances.Add(appearanceName);
+					log(string.Format("New Presence: {0} , tracking {1} Actors", this.avatars[client.UUID].firstName, this.avatars.Count));
+					recordedActions.Enqueue(new ActorAddedEvent(avatars[client.UUID].firstName, avatars[client.UUID].lastName, client.UUID, sw.ElapsedMilliseconds));
+					recordedActions.Enqueue(new ActorAppearanceEvent(client.UUID, appearanceName,sw.ElapsedMilliseconds));
+					recordedActions.Enqueue(new ActorMovedEvent(avatars[client.UUID], sw.ElapsedMilliseconds));
+					recordedActions.Enqueue(new ActorAnimationEvent(client.UUID, avatars[client.UUID].animations, sw.ElapsedMilliseconds));
+				}
 			}
 		}
 
 		public void onAvatarAppearanceChanged(ScenePresence client)
 		{
-			if(this.avatars.ContainsKey(client.UUID))
+			if(this.avatars.ContainsKey(client.UUID) && isRecording)
 			{
-				recordedActions.Enqueue(new ActorAppearanceEvent(client.UUID, client.Appearance.Pack(),sw.ElapsedMilliseconds));
+				avatars[client.UUID].appearanceCount++;
+				string appearanceName = persistAppearance(client.UUID, avatars[client.UUID].appearanceCount);
+				recordedActions.Enqueue(new ActorAppearanceEvent(client.UUID, appearanceName,sw.ElapsedMilliseconds));
 			}
 		}
 
 		public void onAvatarPresenceChanged(ScenePresence client)
 		{
-			if(this.avatars.ContainsKey(client.UUID))
+			if(this.avatars.ContainsKey(client.UUID) && isRecording)
 			{
 				//determine what has changed about the avatar
+
 				//Position/Control flags
 				if(avatars[client.UUID].movementChanged(client))
 				{
@@ -213,7 +327,10 @@ OnAttach
 		{
 			if(this.avatars.ContainsKey(uuid))
 			{
-				recordedActions.Enqueue(new ActorRemovedEvent(uuid, sw.ElapsedMilliseconds));
+				if(isRecording)
+				{
+					recordedActions.Enqueue(new ActorRemovedEvent(uuid, sw.ElapsedMilliseconds));
+				}
 				this.avatars.Remove(uuid);
 			}
 		}
@@ -230,8 +347,11 @@ OnAttach
 				if(! objects.ContainsKey(part.UUID))
 				{
 					objects.Add(part.UUID, new ObjectActor(part));
-					recordedActions.Enqueue(new ObjectAddedEvent(part.UUID, part.Name,part.Shape,sw.ElapsedMilliseconds));
-					recordedActions.Enqueue(new ObjectMovedEvent(part.UUID,part.AbsolutePosition,part.GetWorldRotation(),part.Velocity,part.AngularVelocity,sw.ElapsedMilliseconds));
+					if(isRecording)
+					{
+						recordedActions.Enqueue(new ObjectAddedEvent(part.UUID, part.Name,part.Shape,sw.ElapsedMilliseconds));
+						recordedActions.Enqueue(new ObjectMovedEvent(part.UUID,part.AbsolutePosition,part.GetWorldRotation(),part.Velocity,part.AngularVelocity,sw.ElapsedMilliseconds));
+					}
 				}
 			}
 		}
@@ -244,7 +364,10 @@ OnAttach
 				if(objects.ContainsKey(part.UUID))
 				{
 					objects.Remove(part.UUID);
-					recordedActions.Enqueue(new ObjectRemovedEvent(part.UUID,sw.ElapsedMilliseconds));
+					if(isRecording)
+					{
+						recordedActions.Enqueue(new ObjectRemovedEvent(part.UUID,sw.ElapsedMilliseconds));
+					}
 				}
 			}
 		}
@@ -255,13 +378,28 @@ OnAttach
 			{
 				if(objects[sop.UUID].movementChanged(sop.AbsolutePosition,sop.GetWorldRotation(),sop.Velocity,sop.AngularVelocity)){
 					objects[sop.UUID].updateMovement(sop.AbsolutePosition,sop.GetWorldRotation(),sop.Velocity,sop.AngularVelocity);
-					recordedActions.Enqueue(new ObjectMovedEvent(sop.UUID,sop.AbsolutePosition,sop.GetWorldRotation(),sop.Velocity,sop.AngularVelocity,sw.ElapsedMilliseconds));
+					if(isRecording)
+					{
+						recordedActions.Enqueue(new ObjectMovedEvent(sop.UUID,sop.AbsolutePosition,sop.GetWorldRotation(),sop.Velocity,sop.AngularVelocity,sw.ElapsedMilliseconds));
+					}
 				}
 			}
 		}
 
 		#endregion
 
+		#region persistance
+
+		private string persistAppearance(UUID avatarID, int appearanceVersion)
+		{
+			OSSL_Api osslApi = new OSSL_Api();
+			osslApi.Initialize(xEngine, aarBox.RootPart, null, null);
+			string notecardName = string.Format("{0}:appearance:{1}:{2}",sessionId,avatarID,appearanceVersion);
+			osslApi.osAgentSaveAppearance(avatarID.ToString(), notecardName);
+			return notecardName;
+		}
+
+		#endregion
 	}
 }
 

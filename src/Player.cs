@@ -16,7 +16,7 @@ namespace MOSES.AAR
 		}
 		public void registerCommands(IRegionModuleBase regionModule, Scene scene)
 		{
-			//scene.AddCommand(regionModule,"aar playback","start playing","really start playing",startRecording);
+
 		}
 		public void deinitialize(Scene scene)
 		{

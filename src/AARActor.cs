@@ -68,6 +68,8 @@ namespace MOSES.AAR
 		public OSDMap appearance { get; set; }
 		public bool isFlying;
 		public OpenSim.Framework.Animation[] animations;
+		public List<string> appearances = new List<string>();
+		public int appearanceCount = 0;
 
 		public AvatarActor(ScenePresence presence) : base(presence.UUID,presence.AbsolutePosition,presence.Rotation,presence.Velocity,presence.AngularVelocity)
 		{

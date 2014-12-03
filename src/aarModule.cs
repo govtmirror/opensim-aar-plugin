@@ -23,10 +23,8 @@ namespace MOSES.AAR
 	[Extension(Path = "/OpenSim/RegionModules", NodeName = "RegionModule", Id = "AARModule")]
 	public class AARModule : INonSharedRegionModule
 	{
-
-		private Scene m_scene;
 		private static ILog m_log;
-		private AAR aar;
+		private AAR aar = null;
 
 		#region RegionModule
 
@@ -39,12 +37,15 @@ namespace MOSES.AAR
 		public void Initialise(IConfigSource source)
 		{
             m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
-			m_log.DebugFormat("[AAR]: Initialized Module");
 		}
 
 		public void Close(){}
 		public void AddRegion(Scene scene){}
-		public void RemoveRegion(Scene scene){}
+		public void RemoveRegion(Scene scene)
+		{
+			if( aar != null)
+				aar.cleanup();
+		}
 
 		public void RegionLoaded(Scene scene)
 		{
@@ -146,8 +147,8 @@ namespace MOSES.AAR
 			}
 		}
 
-		public void changeAppearance(UUID uuid, OSDMap appearance){
-			npc.SetNPCAppearance(stooges[uuid].UUID, new AvatarAppearance(appearance), m_scene);
+		public void changeAppearance(UUID uuid, string notecard){
+			//npc.SetNPCAppearance(stooges[uuid].UUID, new AvatarAppearance(appearance), m_scene);
 		}
 
 		public void deleteActor(UUID uuid)
