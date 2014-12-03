@@ -27,6 +27,7 @@ namespace MOSES.AAR
 		private bool isRecording = false;
 		private bool hasRecording = false;
 		private UUID sessionId;
+		private static int CHUNKSIZE = 16000000;
 
 		private SceneObjectGroup aarBox = null;
 		private XEngine xEngine = null;
@@ -240,6 +241,25 @@ OnAttach
 					binaryFormatter.Serialize(gZipStream, recordedActions);
 				}
 				session = Convert.ToBase64String(memoryStream.ToArray());
+			}
+			//the recorded session events are all compressed and encoded into the string in session
+			OSSL_Api osslApi = new OSSL_Api();
+			osslApi.Initialize(xEngine, aarBox.RootPart, null, null);
+			for(int i = 0, n = 0; i < session.Length; i+= CHUNKSIZE, n++)
+			{
+				string sessionChunk;
+				if(i+CHUNKSIZE > session.Length)
+				{
+					sessionChunk = session.Substring(i, session.Length-i);
+				}
+				else
+				{
+					sessionChunk = session.Substring(i, CHUNKSIZE);
+				}
+				OpenSim.Region.ScriptEngine.Shared.LSL_Types.list l = new OpenSim.Region.ScriptEngine.Shared.LSL_Types.list();
+				l.Add(sessionChunk);
+				string notecardName = string.Format("session:{0}:{1}", sessionId,n);
+				osslApi.osMakeNotecard(notecardName,l);
 			}
 
 			log(string.Format("{0} bytes", System.Text.ASCIIEncoding.ASCII.GetByteCount(session)));
