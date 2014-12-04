@@ -25,6 +25,7 @@ namespace MOSES.AAR
 	{
 		private static ILog m_log;
 		private AAR aar = null;
+		private Scene m_scene;
 
 		#region RegionModule
 
@@ -40,20 +41,29 @@ namespace MOSES.AAR
 		}
 
 		public void Close(){}
-		public void AddRegion(Scene scene){}
+		public void AddRegion(Scene scene)
+		{
+			scene.AddCommand("Aar",this,"aar init","init","initialize the aar module", regionReady);
+			m_scene = scene;
+		}
+
 		public void RemoveRegion(Scene scene)
 		{
 			if( aar != null)
 				aar.cleanup();
 		}
 
-		public void RegionLoaded(Scene scene)
+		public void RegionLoaded(Scene scene){}
+
+		public void regionReady(string module, string[] args)
 		{
-			this.aar = new AAR(scene, this, delegate(string s){m_log.DebugFormat("[AAR]: {0}", s);});
+			if(aar == null)
+				aar = new AAR(m_scene, this, delegate(string s){m_log.DebugFormat("[AAR]: {0}", s);});
 		}
 
 		#endregion
 	}
+
 
 	/*
 	 * This class is an interface to the AAR replay code, which affects the scene in question during playback

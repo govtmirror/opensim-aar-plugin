@@ -18,6 +18,7 @@ namespace MOSES.AAR
 		private AARLog log;
 		//callbacks to affect the scene
 		private Recorder recorder;
+		private Player player;
 
 		public static string AARBOXNAME = "AARModule Storage Box";
 
@@ -30,9 +31,31 @@ namespace MOSES.AAR
 
 			scene.AddCommand("Aar",module,"aar status","status","Print the status of the AAR module", statusAction);
 
-			recorder = new Recorder(log);
+			/* lookup aarBox */
+			SceneObjectGroup aarBox = null;
+			foreach(EntityBase ent in scene.Entities.GetEntities())
+			{
+				if(ent.Name == AAR.AARBOXNAME)
+				{
+					log("Found aarBox");
+					aarBox = (SceneObjectGroup)ent;
+				}
+			}
+			if(aarBox == null)
+			{
+				aarBox = new SceneObjectGroup(UUID.Zero,Vector3.Zero,PrimitiveBaseShape.CreateBox());
+				aarBox.Name = AAR.AARBOXNAME;
+				scene.AddNewSceneObject(aarBox, true);
+				log("Created new aarBox");
+			}
+
+			recorder = new Recorder(log, aarBox);
 			recorder.initialize(scene);
 			recorder.registerCommands(module,scene);
+
+			player = new Player(log, aarBox);
+			player.initialize(scene);
+			player.registerCommands(module,scene);
 		}
 
 		public void cleanup()
@@ -46,6 +69,7 @@ namespace MOSES.AAR
 		{
 			log("AAR status command");
 			recorder.printStatus();
+			player.printStatus();
 		}
 		#endregion
 	}

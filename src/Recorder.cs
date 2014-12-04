@@ -32,14 +32,24 @@ namespace MOSES.AAR
 		private SceneObjectGroup aarBox = null;
 		private XEngine xEngine = null;
 
-		public Recorder (AARLog log)
+		public Recorder (AARLog log, SceneObjectGroup container)
 		{
 			this.log = log;
+			aarBox = container;
 		}
 
 		public void printStatus()
 		{
-			log("Recorder class checking in");
+			string msg = "Recorder Class ";
+			if(!isRecording)
+			{
+				msg += "is not recording";
+			}
+			else
+			{
+				msg += string.Format("is holding {0} events over {1} seconds",recordedActions.Count, sw.ElapsedMilliseconds/1000);
+			}
+			log(msg);
 		}
 
 		public void initialize(Scene scene)
@@ -68,23 +78,6 @@ namespace MOSES.AAR
 					scriptModule = sm;
 			}
 			xEngine = (XEngine)scriptModule;
-
-			/* lookup aarBox */
-			foreach(EntityBase ent in scene.Entities.GetEntities())
-			{
-				if(ent.Name == AAR.AARBOXNAME)
-				{
-					log("Found aarBox");
-					aarBox = (SceneObjectGroup)ent;
-				}
-			}
-			if(aarBox == null)
-			{
-				aarBox = new SceneObjectGroup(UUID.Zero,Vector3.Zero,PrimitiveBaseShape.CreateBox());
-				aarBox.Name = AAR.AARBOXNAME;
-				scene.AddNewSceneObject(aarBox, false);
-				log("Created new aarBox");
-			}
 
 		}
 		public void registerCommands(IRegionModuleBase regionModule, Scene scene)
