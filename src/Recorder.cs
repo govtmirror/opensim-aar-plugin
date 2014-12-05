@@ -11,6 +11,7 @@ using OpenSim.Region.ScriptEngine.XEngine;
 using OpenSim.Region.ScriptEngine.Shared.Api;
 using System.IO.Compression;
 using System.Runtime.Serialization.Formatters.Binary;
+using System.IO;
 
 
 namespace MOSES.AAR
@@ -226,14 +227,16 @@ OnAttach
 			}
 			//persist the session
 			string session = "";
-			using (var memoryStream = new System.IO.MemoryStream())
+			using (MemoryStream msCompressed = new MemoryStream())
+			using (GZipStream gZipStream = new GZipStream(msCompressed, CompressionMode.Compress))
+			using (MemoryStream msDecompressed = new MemoryStream())
 			{
-				using (var gZipStream = new GZipStream(memoryStream, CompressionMode.Compress))
-				{
-					BinaryFormatter binaryFormatter = new BinaryFormatter();
-					binaryFormatter.Serialize(gZipStream, recordedActions);
-				}
-				session = Convert.ToBase64String(memoryStream.ToArray());
+				new BinaryFormatter().Serialize(msDecompressed, recordedActions);
+				byte[] byteArray = msDecompressed.ToArray();
+
+				gZipStream.Write(byteArray, 0, byteArray.Length);
+				gZipStream.Close();
+				session = Convert.ToBase64String(msCompressed.ToArray());
 			}
 			//the recorded session events are all compressed and encoded into the string in session
 			OSSL_Api osslApi = new OSSL_Api();
