@@ -65,10 +65,10 @@ namespace MOSES.AAR
 	[Serializable]
 	class ObjectMovedEvent : ObjectEvent
 	{
-		Vector3 position{get; set;}
-		Quaternion rotation{get; set;}
-		Vector3 velocity{get; set;}
-		Vector3 angularVelocity{get; set;}
+		public Vector3 position{get; set;}
+		public Quaternion rotation{get; set;}
+		public Vector3 velocity{get; set;}
+		public Vector3 angularVelocity{get; set;}
 
 		public ObjectMovedEvent(UUID uuid, Vector3 position, Quaternion rotation, Vector3 velocity, Vector3 angularVelocity, long time) : base(uuid, time)
 		{

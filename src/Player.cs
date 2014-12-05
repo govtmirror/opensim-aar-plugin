@@ -114,11 +114,18 @@ namespace MOSES.AAR
 			}
 			else if(e is ObjectAddedEvent)
 			{
-
+				ObjectAddedEvent oe = (ObjectAddedEvent)e;
+				createObjectPart(oe.uuid,oe.name,oe.shape);
 			}
 			else if(e is ObjectMovedEvent)
 			{
-
+				ObjectMovedEvent oe = (ObjectMovedEvent)e;
+				moveObjectPart(oe.uuid,oe.position,oe.rotation,oe.velocity,oe.angularVelocity);
+			}
+			else if(e is ObjectRemovedEvent)
+			{
+				ObjectRemovedEvent oe = (ObjectRemovedEvent)e;
+				deleteObject(oe.uuid);
 			}
 			else if(e is ActorAddedEvent)
 			{
@@ -314,6 +321,56 @@ namespace MOSES.AAR
 				npc.DeleteNPC(sp.UUID, m_scene);
 			}
 			actors.Clear();
+		}
+
+		#endregion
+
+		#region ObjectDispatch
+
+		private void createObjectPart(UUID uuid, string name, PrimitiveBaseShape shape)
+		{
+			SceneObjectGroup sog = new SceneObjectGroup(UUID.Zero,Vector3.Zero,shape);
+
+			m_scene.AddNewSceneObject(sog, false);
+			objects[uuid] = sog;
+		}
+
+		private void moveObjectPart(UUID uuid, Vector3 position, Quaternion rotation, Vector3 velocity, Vector3 angularVelocity)
+		{
+			if(!objects.ContainsKey(uuid))
+			{
+				//we may be attempting to move an object that we did not create
+				SceneObjectGroup sog;
+				m_scene.TryGetSceneObjectGroup(uuid, out sog);
+				if(sog != null)
+				{
+					sog.AbsolutePosition = position;
+					sog.UpdateGroupRotationR(rotation);
+					sog.Velocity = velocity;
+					sog.ScheduleGroupForTerseUpdate();
+				}
+				return;
+			}
+			objects[uuid].AbsolutePosition = position;//   MoveToTarget(position,0);
+			objects[uuid].UpdateGroupRotationR(rotation);//UpdateRotation(rotation);
+			objects[uuid].Velocity = velocity;
+			objects[uuid].ScheduleGroupForTerseUpdate();
+		}
+
+		private void deleteObject(UUID uuid)
+		{
+			m_scene.DeleteSceneObject(objects[uuid],false);
+			objects.Remove(uuid);
+
+		}
+
+		private void deleteAllObjects()
+		{
+			foreach(SceneObjectGroup stick in objects.Values)
+			{
+				m_scene.DeleteSceneObject(stick,false);
+			}
+			objects.Clear();
 		}
 
 		#endregion
