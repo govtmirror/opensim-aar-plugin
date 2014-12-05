@@ -18,30 +18,18 @@ namespace MOSES.AAR
 		{
 			this.time = time;
 		}
-
-		abstract public void process(Replay dispatch, AARLog log);
 	}
 
 	[Serializable]
 	class EventStart : AAREvent
 	{
 		public EventStart(long time) : base(time){}
-
-		override public void process(Replay dispatch, AARLog log)
-		{
-			log("AAR Event Playback Start");
-		}
 	}
 
 	[Serializable]
 	class EventEnd : AAREvent
 	{
 		public EventEnd(long time) : base(time){}
-
-		override public void process(Replay dispatch, AARLog log)
-		{
-			log("AAR Event Playback Completed");
-		}
 	}
 
 	[Serializable]
@@ -66,23 +54,12 @@ namespace MOSES.AAR
 			this.name = name;
 			this.shape = shape;
 		}
-
-		override public void process(Replay dispatch, AARLog log)
-		{
-			dispatch.createObject(this.uuid,this.name,this.shape);
-		}
 	}
 
 	[Serializable]
 	class ObjectRemovedEvent : ObjectEvent
 	{
-
 		public ObjectRemovedEvent(UUID uuid, long time) : base(uuid, time){}
-
-		override public void process(Replay dispatch, AARLog log)
-		{
-			dispatch.deleteObject(this.uuid);
-		}
 	}
 
 	[Serializable]
@@ -99,11 +76,6 @@ namespace MOSES.AAR
 			this.rotation = rotation;
 			this.position = position;
 			this.angularVelocity = angularVelocity;
-		}
-
-		override public void process(Replay dispatch, AARLog log)
-		{
-			dispatch.moveObject(this.uuid,this.position,this.rotation,this.velocity,this.angularVelocity);
 		}
 	}
 
@@ -127,18 +99,14 @@ namespace MOSES.AAR
 		public string firstName;
 		public string lastName;
 		public string fullName {get { return string.Format("{0} {1}", this.firstName, this.lastName); } }
+		public string notecard;
 
-		public ActorAddedEvent(string firstName, string lastName, UUID uuid, long time)
+		public ActorAddedEvent(string firstName, string lastName, UUID uuid, string notecard, long time)
 			: base(uuid, time)
 		{
 			this.firstName = firstName;
 			this.lastName = lastName;
-		}
-
-		override public void process(Replay dispatch, AARLog log)
-		{
-			log(string.Format("Adding actor {0} as {1}", this.uuid, this.fullName));
-			dispatch.createActor(this.uuid,this.firstName,this.lastName);
+			this.notecard = notecard;
 		}
 	}
 
@@ -147,12 +115,6 @@ namespace MOSES.AAR
 	{
 		public ActorRemovedEvent(UUID uuid, long time)
 			: base(uuid, time){}
-
-		override public void process(Replay dispatch, AARLog log)
-		{
-			log(string.Format("Removing actor {0}", this.uuid));
-			dispatch.deleteActor(this.uuid);
-		}
 	}
 
 	[Serializable]
@@ -165,11 +127,6 @@ namespace MOSES.AAR
 		{
 			this.notecard = notecard;
 		}
-
-		override public void process(Replay dispatch, AARLog log)
-		{
-			dispatch.changeAppearance(this.uuid,this.notecard);
-		}
 	}
 
 	[Serializable]
@@ -181,11 +138,6 @@ namespace MOSES.AAR
 			: base(uuid,time)
 		{
 			this.animations = animations;
-		}
-
-		override public void process(Replay dispatch, AARLog log)
-		{
-			dispatch.animateActor(this.uuid,this.animations);
 		}
 	}
 
@@ -219,12 +171,6 @@ namespace MOSES.AAR
 			this.position = a.position;
 			this.rotation = a.rotation;
 			this.AngularVelocity = a.angularVelocity;
-		}
-
-		override public void process(Replay dispatch, AARLog log)
-		{
-			log(string.Format("Moving actor {0} to {1}", this.uuid, this.position));
-			dispatch.moveActor(this.uuid, this.position, this.rotation, this.velocity, this.isFlying, this.controlFlags);
 		}
 	}
 

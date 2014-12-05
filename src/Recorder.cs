@@ -32,11 +32,11 @@ namespace MOSES.AAR
 
 		private SceneObjectGroup aarBox = null;
 		private XEngine xEngine = null;
+		private Scene m_scene;
 
-		public Recorder (AARLog log, SceneObjectGroup container)
+		public Recorder (AARLog log)
 		{
 			this.log = log;
-			aarBox = container;
 		}
 
 		public void printStatus()
@@ -79,7 +79,7 @@ namespace MOSES.AAR
 					scriptModule = sm;
 			}
 			xEngine = (XEngine)scriptModule;
-
+			m_scene = scene;
 		}
 		public void registerCommands(IRegionModuleBase regionModule, Scene scene)
 		{
@@ -108,12 +108,9 @@ namespace MOSES.AAR
 		 * 
 		 *   
 
-            Scene.EventManager.OnRegionStarted                  += OnRegionStarted;
             Scene.EventManager.OnTerrainTainted                 += OnTerrainTainted;
 
-            Scene.EventManager.OnNewScript                      += OnLocalNewScript;
-            Scene.EventManager.OnUpdateScript                   += OnLocalUpdateScript;
-            Scene.EventManager.OnScriptReset                    += OnLocalScriptReset;
+
             Scene.EventManager.OnChatBroadcast                  += OnLocalChatBroadcast;
             Scene.EventManager.OnChatFromClient                 += OnLocalChatFromClient;
             Scene.EventManager.OnChatFromWorld                  += OnLocalChatFromWorld;
@@ -121,35 +118,14 @@ namespace MOSES.AAR
             Scene.EventManager.OnObjectGrab                     += OnLocalGrabObject;
             Scene.EventManager.OnObjectGrabbing                 += OnLocalObjectGrabbing;
             Scene.EventManager.OnObjectDeGrab                   += OnLocalDeGrabObject;
-            Scene.EventManager.OnScriptColliderStart            += OnLocalScriptCollidingStart;
-            Scene.EventManager.OnScriptColliding                += OnLocalScriptColliding;
-            Scene.EventManager.OnScriptCollidingEnd             += OnLocalScriptCollidingEnd;
-            Scene.EventManager.OnScriptLandColliderStart        += OnLocalScriptLandCollidingStart;
-            Scene.EventManager.OnScriptLandColliding            += OnLocalScriptLandColliding;
-            Scene.EventManager.OnScriptLandColliderEnd          += OnLocalScriptLandCollidingEnd;
 		 * 
-OnShutdown/OnSceneShuttingDown	-region quitting
-OnSetRootAgentScene	???
-OnObjectGrab[bing]	-somebody grabbed something
-OnObjectDeGrab
+
 OnSceneGroupMove
 OnSceneGroubGrab
 OnSceneGroupSpin[Start]
 OnLandObjectAdded	???
 OnLandObjectRemoved
-OnCrossAgentToNewRegion ???
-OnClientClosed
-OnScriptChangedEvent	-something scripty changing
-OnScriptMovingStartEvent ??? TODO?
-OnScriptMovingEndEvent ??? TODO?
-OnMakeChildAgent
-OnMAkeRootAgent
-OnSaveNewWindlightProfile[Targeted]
-OnIncomingSceneObject
-OnAvatarKilled
-OnObjectAddedToScene - [PhysicalScene]
-OnObjectRemovedFromScene
-OnOarFileLoaded [Saved]
+
 OnAttach
 */
 
@@ -173,6 +149,10 @@ OnAttach
 		#region commands
 		public void startRecording(string module, string[] args)
 		{
+			if(aarBox == null)
+			{
+				aarBox = AAR.findAarBox(m_scene);
+			}
 			if(isRecording)
 			{
 				log("Error starting: AAR is already recording");
@@ -193,8 +173,7 @@ OnAttach
 				a.appearances.Clear();
 				string appearanceName = persistAppearance(a.uuid,a.appearanceCount);
 				a.appearances.Add(appearanceName);
-				recordedActions.Enqueue(new ActorAddedEvent(a.firstName, a.lastName, a.uuid, sw.ElapsedMilliseconds));
-				recordedActions.Enqueue(new ActorAppearanceEvent(a.uuid, appearanceName, sw.ElapsedMilliseconds));
+				recordedActions.Enqueue(new ActorAddedEvent(a.firstName, a.lastName, a.uuid, appearanceName, sw.ElapsedMilliseconds));
 				recordedActions.Enqueue(new ActorMovedEvent(a, sw.ElapsedMilliseconds));
 				recordedActions.Enqueue(new ActorAnimationEvent(a.uuid, a.animations, sw.ElapsedMilliseconds));
 			}
@@ -204,6 +183,10 @@ OnAttach
 		}
 		public void stopRecording(string module, string[] args)
 		{
+			if(aarBox == null)
+			{
+				aarBox = AAR.findAarBox(m_scene);
+			}
 			if( !isRecording )
 			{
 				log("Error stopping: AAR is not recording");
@@ -215,6 +198,10 @@ OnAttach
 		}
 		public void saveSession(string module, string[] args)
 		{
+			if(aarBox == null)
+			{
+				aarBox = AAR.findAarBox(m_scene);
+			}
 			if(isRecording)
 			{
 				log("Error saving session, module is still recording");
@@ -286,8 +273,7 @@ OnAttach
 					string appearanceName = persistAppearance(client.UUID,avatars[client.UUID].appearanceCount);
 					avatars[client.UUID].appearances.Add(appearanceName);
 					log(string.Format("New Presence: {0} , tracking {1} Actors", this.avatars[client.UUID].firstName, this.avatars.Count));
-					recordedActions.Enqueue(new ActorAddedEvent(avatars[client.UUID].firstName, avatars[client.UUID].lastName, client.UUID, sw.ElapsedMilliseconds));
-					recordedActions.Enqueue(new ActorAppearanceEvent(client.UUID, appearanceName,sw.ElapsedMilliseconds));
+					recordedActions.Enqueue(new ActorAddedEvent(avatars[client.UUID].firstName, avatars[client.UUID].lastName, client.UUID, appearanceName, sw.ElapsedMilliseconds));
 					recordedActions.Enqueue(new ActorMovedEvent(avatars[client.UUID], sw.ElapsedMilliseconds));
 					recordedActions.Enqueue(new ActorAnimationEvent(client.UUID, avatars[client.UUID].animations, sw.ElapsedMilliseconds));
 				}

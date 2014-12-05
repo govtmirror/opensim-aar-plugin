@@ -43,7 +43,6 @@ namespace MOSES.AAR
 		public void Close(){}
 		public void AddRegion(Scene scene)
 		{
-			scene.AddCommand("Aar",this,"aar init","init","initialize the aar module", regionReady);
 			m_scene = scene;
 		}
 
@@ -53,12 +52,9 @@ namespace MOSES.AAR
 				aar.cleanup();
 		}
 
-		public void RegionLoaded(Scene scene){}
-
-		public void regionReady(string module, string[] args)
+		public void RegionLoaded(Scene scene)
 		{
-			if(aar == null)
-				aar = new AAR(m_scene, this, delegate(string s){m_log.DebugFormat("[AAR]: {0}", s);});
+			aar = new AAR(m_scene, this, delegate(string s){m_log.DebugFormat("[AAR]: {0}", s);});
 		}
 
 		#endregion
