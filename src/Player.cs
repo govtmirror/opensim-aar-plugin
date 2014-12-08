@@ -115,7 +115,7 @@ namespace MOSES.AAR
 			else if(e is ObjectAddedEvent)
 			{
 				ObjectAddedEvent oe = (ObjectAddedEvent)e;
-				createObjectPart(oe.uuid,oe.name,oe.shape);
+				createObjectPart(oe.uuid,oe.name);
 			}
 			else if(e is ObjectMovedEvent)
 			{
@@ -327,12 +327,21 @@ namespace MOSES.AAR
 
 		#region ObjectDispatch
 
-		private void createObjectPart(UUID uuid, string name, PrimitiveBaseShape shape)
+		private void createObjectPart(UUID uuid, string name)
 		{
-			SceneObjectGroup sog = new SceneObjectGroup(UUID.Zero,Vector3.Zero,shape);
+			TaskInventoryItem item = aarBox.RootPart.Inventory.GetInventoryItem(uuid.ToString());
 
-			m_scene.AddNewSceneObject(sog, false);
-			objects[uuid] = sog;
+			List<SceneObjectGroup> results = m_scene.RezObject(aarBox.RootPart,item,Vector3.Zero,Quaternion.Identity,Vector3.Zero,0);
+
+			foreach(SceneObjectGroup sog in results)
+			{
+				objects[sog.UUID] = sog;
+			}
+
+			//SceneObjectGroup sog = new SceneObjectGroup(UUID.Zero,Vector3.Zero,shape);
+
+			//m_scene.AddNewSceneObject(sog, false);
+			//objects[uuid] = sog;
 		}
 
 		private void moveObjectPart(UUID uuid, Vector3 position, Quaternion rotation, Vector3 velocity, Vector3 angularVelocity)

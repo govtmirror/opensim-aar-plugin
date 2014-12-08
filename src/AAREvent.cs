@@ -47,12 +47,10 @@ namespace MOSES.AAR
 	class ObjectAddedEvent : ObjectEvent
 	{
 		public string name;
-		public PrimitiveBaseShape shape;
 
-		public ObjectAddedEvent(UUID uuid, String name, PrimitiveBaseShape shape, long time) : base(uuid, time)
+		public ObjectAddedEvent(UUID uuid, String name, long time) : base(uuid, time)
 		{
 			this.name = name;
-			this.shape = shape;
 		}
 	}
 

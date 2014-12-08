@@ -351,7 +351,8 @@ OnAttach
 					objects.Add(part.UUID, new ObjectActor(part));
 					if(isRecording)
 					{
-						recordedActions.Enqueue(new ObjectAddedEvent(part.UUID, part.Name,part.Shape,sw.ElapsedMilliseconds));
+						persistObject(part);
+						recordedActions.Enqueue(new ObjectAddedEvent(part.UUID, part.Name,sw.ElapsedMilliseconds));
 						recordedActions.Enqueue(new ObjectMovedEvent(part.UUID,part.AbsolutePosition,part.GetWorldRotation(),part.Velocity,part.AngularVelocity,sw.ElapsedMilliseconds));
 					}
 				}
@@ -391,6 +392,13 @@ OnAttach
 		#endregion
 
 		#region persistance
+
+		private void persistObject(SceneObjectPart sop)
+		{
+			OpenSim.Framework.InventoryItemBase item = new InventoryItemBase(sop.UUID);
+			item.Name = sop.UUID.ToString();
+			aarBox.AddInventoryItem(UUID.Zero,sop.LocalId,item,sop.UUID);
+		}
 
 		private string persistAppearance(UUID avatarID, int appearanceVersion)
 		{
