@@ -180,7 +180,11 @@ OnAttach
 				recordedActions.Enqueue(new ActorMovedEvent(a, sw.ElapsedMilliseconds));
 				recordedActions.Enqueue(new ActorAnimationEvent(a.uuid, a.animations, sw.ElapsedMilliseconds));
 			}
-			//FIXME: skip adding initial objects for now, assume the region is populated by oar file
+			//We assume the region is populated, but lets record their initial positions
+			foreach(ObjectActor oa in objects.Values)
+			{
+				recordedActions.Enqueue(new ObjectMovedEvent(oa.uuid,oa.position,oa.rotation,oa.velocity,oa.angularVelocity,sw.ElapsedMilliseconds));
+			}
 			recordedActions.Enqueue(new EventStart(sw.ElapsedMilliseconds));
 			log("Record Start");
 		}
