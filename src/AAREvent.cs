@@ -33,6 +33,23 @@ namespace MOSES.AAR
 	}
 
 	[Serializable]
+	class ChatEvent : AAREvent
+	{
+		public UUID sender;
+		public int channel;
+		public ChatTypeEnum msgType;
+		public string message;
+
+		public ChatEvent(OSChatMessage msg, long time) : base(time)
+		{
+			sender = msg.SenderUUID;
+			channel = msg.Channel;
+			msgType = msg.Type;
+			message = msg.Message;
+		}
+	}
+
+	[Serializable]
 	abstract class ObjectEvent : AAREvent
 	{
 		public UUID uuid {get; set;}

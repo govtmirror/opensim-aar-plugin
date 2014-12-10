@@ -69,6 +69,9 @@ namespace MOSES.AAR
 			scene.EventManager.OnObjectBeingRemovedFromScene	+= onRemoveObject;
 			scene.EventManager.OnSceneObjectPartUpdated			+= onUpdateObject;
 
+			/* Chat Events */
+			scene.EventManager.OnChatFromClient                  += onChatBroadcast;
+
 			/* lookup xEngine */
 			IScriptModule scriptModule = null;
 			foreach (IScriptModule sm in scene.RequestModuleInterfaces<IScriptModule>())
@@ -253,6 +256,23 @@ OnAttach
 			}
 			hasRecording = false;
 		}
+		#endregion
+
+		#region ChatInterface
+
+		//only has broadcasts to local chat, not IMs
+		public void onChatBroadcast(object obj, OSChatMessage msg)
+		{
+			if(msg.Message == "")
+			{
+				return;
+			}
+			if(isRecording)
+			{
+				recordedActions.Enqueue(new ChatEvent(msg, sw.ElapsedMilliseconds));
+			}
+		}
+
 		#endregion
 
 		#region AvatarInterface

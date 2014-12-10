@@ -22,6 +22,7 @@ namespace MOSES.AAR
 		private Scene m_scene;
 		private SceneObjectGroup aarBox;
 		private bool isPlaying = false;
+		private bool scriptsHalted = false;
 		private Queue<AAREvent> recordedActions;
 		private Queue<AAREvent> processedActions = new Queue<AAREvent>();
 
@@ -90,14 +91,44 @@ namespace MOSES.AAR
 		{
 			if(isPlaying)
 			{
-				while( recordedActions.Count > 0 && sw.ElapsedMilliseconds > recordedActions.Peek().time)
+				try
 				{
-					AAREvent e = recordedActions.Dequeue();
-					processedActions.Enqueue(e);
+					while( recordedActions.Count > 0 && sw.ElapsedMilliseconds > recordedActions.Peek().time)
+					{
+						AAREvent e = recordedActions.Dequeue();
+						processedActions.Enqueue(e);
 
-					dispatchEvent(e);
+						dispatchEvent(e);
+					}
+					return;
 				}
-				return;
+				catch(Exception e)
+				{
+					string msg = "Error processing: ";
+					if(recordedActions == null)
+					{
+						msg += "recordedActions is null - ";
+					}
+					else if(recordedActions.Peek() == null)
+					{
+						msg += "recordedActions.Peek() is null - ";
+					}
+					else
+					{
+						msg += string.Format("recordedActions.Count: {0}", recordedActions.Count);
+					}
+					if(sw == null)
+					{
+						msg += "stopwatch is null - ";
+					}
+					else
+					{
+						msg += string.Format("Stopwatch elapsed millisecionds: {0}", sw.ElapsedMilliseconds);
+					}
+
+					isPlaying = false;
+					log(msg + e.StackTrace);
+				}
 			}
 		}
 
@@ -151,6 +182,11 @@ namespace MOSES.AAR
 			{
 				ActorMovedEvent ae = (ActorMovedEvent)e;
 				moveActor(ae.uuid,ae.position,ae.rotation,ae.velocity,ae.isFlying,ae.controlFlags);
+			}
+			else if(e is ChatEvent)
+			{
+				ChatEvent ce = (ChatEvent)e;
+				chat(ce.sender,ce.message,ce.msgType,ce.channel);
 			}
 			else
 			{
@@ -232,8 +268,11 @@ namespace MOSES.AAR
 				return;
 			}
 
+			dialog.SendGeneralAlert("AAR Module: Halting scripts in preparation for Playback");
 			haltScripts();
+			dialog.SendGeneralAlert("AAR Module: Initializing scene");
 			loadSession(sessionId, sessions[sessionId]);
+			dialog.SendGeneralAlert("AAR Module: Scene ready for playback");
 		}
 
 		public void unloadSession(string module, string[] args)
@@ -244,14 +283,34 @@ namespace MOSES.AAR
 			}
 			isPlaying = false;
 			recordedActions = null;
+			dialog.SendGeneralAlert("AAR Module: Clearing Scene");
 			//TODO delete managed objects and NPC characters
 			deleteAllActors();
+			dialog.SendGeneralAlert("AAR Module: Resuming normal region script operation");
 			resumeScripts();
+			dialog.SendGeneralAlert("AAR Module: Unload complete");
 		}
 
 		#endregion
 
 		#region AvatarDispatch
+
+		private void chat(UUID agent, string msg, ChatTypeEnum msgType, int channel)
+		{
+			UUID speaker = actors[agent].UUID;
+			switch(msgType)
+			{
+			case ChatTypeEnum.Say:
+				npc.Say(speaker,m_scene,msg,channel);
+				break;
+			case ChatTypeEnum.Shout:
+				npc.Shout(speaker,m_scene,msg,channel);
+				break;
+			case ChatTypeEnum.Whisper:
+				npc.Whisper(speaker,m_scene,msg,channel);
+				break;
+			}
+		}
 
 		private AvatarAppearance loadAvatarAppearance(string notecard)
 		{
@@ -443,20 +502,23 @@ namespace MOSES.AAR
 
 		private void haltScripts()
 		{
-			dialog.SendGeneralAlert("AAR Module: Halting scripts in preparation for Playback");
+			if(scriptsHalted)
+				return;
+			scriptsHalted = true;
 			EntityBase[] ents = m_scene.Entities.GetEntities();
 			foreach(EntityBase eb in ents)
 			{
 				if (eb is SceneObjectGroup)
 				{
 					((SceneObjectGroup)eb).RemoveScriptInstances(false);
-					//unloads all script assemblies, very slow
-					//((SceneObjectGroup)eb).RemoveScriptInstances(false);
 				}
 			}
 		}
 		private void resumeScripts()
 		{
+			if(!scriptsHalted)
+				return;
+			scriptsHalted = false;
 			dialog.SendGeneralAlert("AAR Module: Restarting scripts after playback complete");
 			//this reloads scripts, it may reload all assemblies, but it works reliably
 			m_scene.CreateScriptInstances();
