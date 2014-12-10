@@ -237,8 +237,8 @@ namespace MOSES.AAR
 			{
 				aarBox = AAR.findAarBox(m_scene);
 			}
-			Dictionary<UUID,int> sessions = getSessions();
-			foreach(UUID id in sessions.Keys)
+			Dictionary<string,int> sessions = getSessions();
+			foreach(string id in sessions.Keys)
 			{
 				log(string.Format("session: {0}", id));
 			}
@@ -255,13 +255,8 @@ namespace MOSES.AAR
 				log("Error loading session, Usage: aar load <id>");
 				return;
 			}
-			UUID sessionId;
-			if(!UUID.TryParse(args[2],out sessionId))
-			{
-				log("Error loading session, malformed uuid session key");
-				return;
-			}
-			Dictionary<UUID,int> sessions = getSessions();
+			string sessionId = args[2];
+			Dictionary<string,int> sessions = getSessions();
 			if(! sessions.ContainsKey(sessionId))
 			{
 				log("Error loading session: session does not exist");
@@ -443,14 +438,16 @@ namespace MOSES.AAR
 
 		#endregion
 
-		private void loadSession(UUID sessionId, int maxPiece)
+		private void loadSession(string sessionId, int maxPiece)
 		{
+			log(string.Format("loading session {0}", sessionId));
 			string data = "";
 			OSSL_Api osslApi = new OSSL_Api();
 			osslApi.Initialize(xEngine, aarBox.RootPart, null, null);
 			for(int n = 0; n <= maxPiece; n++)
 			{
-				string notecardName = string.Format("session:{0}:{1}", sessionId,n);
+				string notecardName = string.Format("session-{0}-{1}", sessionId,n);
+				log(string.Format("pulling notecard {0}", notecardName));
 				data += osslApi.osGetNotecard(notecardName);
 			}
 
@@ -474,15 +471,15 @@ namespace MOSES.AAR
 			}
 		}
 
-		private Dictionary<UUID,int> getSessions()
+		private Dictionary<string,int> getSessions()
 		{
-			Dictionary<UUID,int> sessions = new Dictionary<UUID,int>();
+			Dictionary<string,int> sessions = new Dictionary<string,int>();
 			foreach(TaskInventoryItem eb in aarBox.RootPart.Inventory.GetInventoryItems())
 			{
-				string[] parts = eb.Name.Split(':');
+				string[] parts = eb.Name.Split('-');
 				if(parts[0] == "session")
 				{
-					UUID sessionId = new UUID(parts[1]);
+					string sessionId = parts[1];
 					int part = Convert.ToInt32(parts[2]);
 					if(sessions.ContainsKey(sessionId))
 					{

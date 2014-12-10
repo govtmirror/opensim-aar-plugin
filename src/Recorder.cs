@@ -27,7 +27,7 @@ namespace MOSES.AAR
 		private AARLog log;
 		private bool isRecording = false;
 		private bool hasRecording = false;
-		private UUID sessionId;
+		private string sessionId;
 		private static int CHUNKSIZE = 16000000;
 
 		private SceneObjectGroup aarBox = null;
@@ -167,8 +167,8 @@ OnAttach
 			}
 			isRecording = true;
 			hasRecording = true;
-			sessionId = UUID.Random();
 			sw.Restart();
+			sessionId = DateTime.Now.ToString("MM/dd/yyyy_h:mm");
 			recordedActions.Clear();
 			foreach(AvatarActor a in avatars.Values)
 			{
@@ -248,7 +248,7 @@ OnAttach
 				}
 				OpenSim.Region.ScriptEngine.Shared.LSL_Types.list l = new OpenSim.Region.ScriptEngine.Shared.LSL_Types.list();
 				l.Add(sessionChunk);
-				string notecardName = string.Format("session:{0}:{1}", sessionId,n);
+				string notecardName = string.Format("session-{0}-{1}", sessionId,n);
 				osslApi.osMakeNotecard(notecardName,l);
 			}
 
@@ -428,7 +428,7 @@ OnAttach
 		{
 			OSSL_Api osslApi = new OSSL_Api();
 			osslApi.Initialize(xEngine, aarBox.RootPart, null, null);
-			string notecardName = string.Format("{0}:appearance:{1}:{2}",sessionId,avatarID,appearanceVersion);
+			string notecardName = string.Format("{0}-appearance-{1}-{2}",sessionId,avatarID,appearanceVersion);
 			osslApi.osAgentSaveAppearance(avatarID.ToString(), notecardName);
 			return notecardName;
 		}
