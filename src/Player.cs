@@ -104,7 +104,7 @@ namespace MOSES.AAR
 				}
 				catch(Exception e)
 				{
-					string msg = "Error processing: ";
+					/*string msg = "Error processing: ";
 					if(recordedActions == null)
 					{
 						msg += "recordedActions is null - ";
@@ -124,10 +124,11 @@ namespace MOSES.AAR
 					else
 					{
 						msg += string.Format("Stopwatch elapsed millisecionds: {0}", sw.ElapsedMilliseconds);
-					}
+					}*/
 
 					isPlaying = false;
-					log(msg + e.StackTrace);
+					log(e.Message + ": " + e.StackTrace);
+					//log(msg + e.StackTrace);
 				}
 			}
 		}
@@ -385,9 +386,21 @@ namespace MOSES.AAR
 		{
 			TaskInventoryItem item = aarBox.RootPart.Inventory.GetInventoryItem(uuid.ToString());
 
-			List<SceneObjectGroup> results = m_scene.RezObject(aarBox.RootPart,item,Vector3.Zero,Quaternion.Identity,Vector3.Zero,0);
+			List<SceneObjectGroup> rezzedObjects = m_scene.RezObject(aarBox.RootPart,item,Vector3.Zero,null,Vector3.Zero,0);
 
-			foreach(SceneObjectGroup sog in results)
+			if(rezzedObjects == null)
+			{
+				log(string.Format("Rezzing of object {0} failed", name));
+				return;
+			}
+
+			if(objects == null)
+			{
+				log(string.Format("objects dictionary is null"));
+				return;
+			}
+
+			foreach(SceneObjectGroup sog in rezzedObjects)
 			{
 				objects[sog.UUID] = sog;
 			}

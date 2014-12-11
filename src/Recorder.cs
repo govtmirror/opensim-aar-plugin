@@ -21,6 +21,7 @@ namespace MOSES.AAR
 
 		private Dictionary<OpenMetaverse.UUID, AvatarActor> avatars = new Dictionary<OpenMetaverse.UUID, AvatarActor>();
 		private Dictionary<OpenMetaverse.UUID, ObjectActor> objects = new Dictionary<UUID, ObjectActor>();
+		private List<UUID> persistedObjects = new List<UUID>();
 
 		private Queue<AAREvent> recordedActions = new Queue<AAREvent>();
 		private Stopwatch sw = new Stopwatch();
@@ -419,9 +420,41 @@ OnAttach
 
 		private void persistObject(SceneObjectPart sop)
 		{
-			OpenSim.Framework.InventoryItemBase item = new InventoryItemBase(sop.UUID);
+			if(persistedObjects.Contains(sop.UUID))
+			{
+				return;
+			}
+
+			OpenSim.Framework.InventoryItemBase item = new InventoryItemBase();
+			item.AssetID = sop.UUID;
+			item.AssetType = (int)AssetType.Object;
 			item.Name = sop.UUID.ToString();
-			aarBox.AddInventoryItem(UUID.Zero,sop.LocalId,item,sop.UUID);
+			item.Owner = sop.OwnerID;
+			//item.ID =
+			item.InvType = (int)sop.GetPrimType();
+			item.Folder = aarBox.RootPart.FolderID;
+			item.CreatorIdentification = sop.CreatorIdentification;
+			item.Description = sop.Description;
+			item.GroupID = sop.GroupID;
+			item.BasePermissions = 0x7FFFFFFF;
+			item.CurrentPermissions = 0x7FFFFFFF;
+			item.EveryOnePermissions = 0x7FFFFFFF;
+			item.GroupPermissions = 0x7FFFFFFF;
+			item.NextPermissions = 0x7FFFFFFF;
+			aarBox.AddInventoryItem(UUID.Zero,aarBox.RootPart.LocalId,item,sop.UUID);
+			persistedObjects.Add(sop.UUID);
+
+			/*
+
+            if (item.groupOwned == 0)
+                newItem.GroupOwned = false;
+            else
+                newItem.GroupOwned = true;
+            newItem.SalePrice = item.salePrice;
+            newItem.SaleType = (byte)item.saleType;
+            newItem.Flags = (uint)item.flags;
+            newItem.CreationDate = item.creationDate;
+            */
 		}
 
 		private string persistAppearance(UUID avatarID, int appearanceVersion)
